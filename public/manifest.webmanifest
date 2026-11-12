@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Oh My Ink - Live AI Tattoo Experience",
+  "short_name": "Oh My Ink Live",
+  "description": "Discover original tattoo-artist designs from the Oh My Ink catalog and choose your next non-permanent ink moment.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFECDE",
+  "theme_color": "#FFECDE",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/web-icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/web-icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

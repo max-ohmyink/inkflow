@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "name": "ohmyink-stencil-processing",
+  "trigger": { "method": "POST", "path": "/api/stencils" },
+  "capabilities": {
+    "imageGeneration": true,
+    "originalImageGeneration": true,
+    "catalogSelection": true,
+    "catalogFirst": true,
+    "aiFallback": true,
+    "guestFilters": true,
+    "derivedColorVersions": true,
+    "filledColorVersions": true,
+    "durableStorage": true,
+    "database": true,
+    "vectorSvgWhenPotraceInstalled": true
+  },
+  "sourcePolicy": {
+    "selection": "Search validated catalog records first using category/art style filters and strict meaningful theme facets; ignore colorMix for retrieval.",
+    "catalogHit": "Return up to four catalog records only. Do not add AI padding or unrelated catalog records.",
+    "aiFallback": "Only a valid free-text request with zero applicable catalog records persists an AI source decision and queues one 2x2 contact-sheet generation.",
+    "exactCatalogId": "An explicit catalog ID must resolve to a valid allowed record. Invalid or filter-mismatched IDs fail without AI fallback.",
+    "legacyQueued": "Old unversioned queued rows remain catalog-only and never gain a secret AI fallback.",
+    "idempotency": "A verified clientId/requestId/capabilityToken returns the persisted job before source selection or provider work."
+  },
+  "instantDrawProfile": {
+    "noMandala": true,
+    "conceptPolicy": "Reject mandala or mandalas and the Chinese forms 曼陀羅, 曼陀罗, 曼荼羅, and 曼荼罗.",
+    "artDirection": "One small recognizable motif with approximately 6–12 clean strokes as guidance, minimal interior detail, open whitespace, and no dense effects. AI fallback originals are simple black outlines even for Cyber & ornamental."
+  },
+  "queue": {
+    "globalConcurrencyPerProcess": 2,
+    "perClientRunningConcurrency": 2,
+    "idempotency": "clientId + requestId; client pre-persists a secure 256-bit capabilityToken for response-loss recovery",
+    "automaticPaidImageRetry": false
+  },
+  "runtimeOverrides": {
+    "STENCIL_THRESHOLD": 180,
+    "STENCIL_MIN_COMPONENT_PIXELS": 3
+  },
+  "pipeline": [
+    "validate input against the instant-draw profile, including noMandala; the frontend submits its blank-state Surprise me value as a normal catalog-first request",
+    "apply source category and art-style choices before strict catalog matching; colorMix is persisted only as output intent",
+    "persist a V3 catalog decision (catalog IDs, filters, colorMode, fillEnclosedRegions) or V1 AI decision (concept, mapped art style, blackwork base, filters, colorMode, fillEnclosedRegions) before enqueueing",
+    "for catalog decisions, read selected original PNG files from assets/catalog/inspiration and store exact bytes; for AI decisions, call ImageService once for a 2x2 outline contact sheet and persist four separately split originals",
+    "for V2 color rows use ink-only compatibility; for V3 and AI color rows use the referenced full-design color helper with fillEnclosedRegions true; monochrome remains deterministic and original mode does not edit",
+    "derive mirrored artist PNG/SVG only from each uncolored normal-orientation original",
+    "persist options and mark ready"
+  ],
+  "recovery": {
+    "startup": "before accepting HTTP requests, mark all prior generating/processing jobs failed and re-enqueue queued jobs",
+    "singleWorkerInstanceRequired": true,
+    "interruptedPost": "resubmit the same clientId/requestId and pre-saved capabilityToken; verified ownership returns the existing persisted source decision without another provider run",
+    "catalogProcessingFailure": "guest explicitly creates a new request; no automatic retry",
+    "aiFallbackFailure": "mark the AI job failed with a safe English message; never fall back to catalog after an ImageService failure and never automatically retry paid work",
+    "colorVersionFailure": "mark the job failed with a safe color-specific English message; no automatic paid retry or unchanged-image fallback"
+  },
+  "limitation": "This API-process queue is not a distributed durable worker system. Use one worker instance; completed artwork and metadata are durable. This JSON describes the workflow; actual tunable image-processing values come from runtimeOverrides environment variables."
+}

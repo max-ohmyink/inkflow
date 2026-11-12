@@ -1,0 +1,151 @@
+{
+  "source": "User-supplied tattoo ink reference photograph; source image is not copied or modified.",
+  "sampling": {
+    "method": "channel-wise median RGB of a square foreground patch",
+    "patchRadiusPx": 8,
+    "colorSpace": "sRGB values decoded by Pillow"
+  },
+  "disclaimer": "Approximate screen colors observed under the reference lighting; not calibrated ink-color promises.",
+  "inks": [
+    {
+      "id": "cool_purple",
+      "name": "Cool Purple",
+      "hex": "#483468",
+      "rgb": [72, 52, 104],
+      "sampleCenter": [225, 181]
+    },
+    {
+      "id": "purple",
+      "name": "Purple",
+      "hex": "#512E5F",
+      "rgb": [81, 46, 95],
+      "sampleCenter": [319, 184]
+    },
+    {
+      "id": "warm_purple",
+      "name": "Warm Purple",
+      "hex": "#803A5C",
+      "rgb": [128, 58, 92],
+      "sampleCenter": [405, 183]
+    },
+    {
+      "id": "rose_pink",
+      "name": "Rose Pink",
+      "hex": "#A94F73",
+      "rgb": [169, 79, 115],
+      "sampleCenter": [500, 187]
+    },
+    {
+      "id": "red",
+      "name": "Red",
+      "hex": "#B64457",
+      "rgb": [182, 68, 87],
+      "sampleCenter": [578, 190]
+    },
+    {
+      "id": "cherry_red",
+      "name": "Cherry Red",
+      "hex": "#A64F61",
+      "rgb": [166, 79, 97],
+      "sampleCenter": [657, 197]
+    },
+    {
+      "id": "deep_red",
+      "name": "Deep Red",
+      "hex": "#89444F",
+      "rgb": [137, 68, 79],
+      "sampleCenter": [732, 199]
+    },
+    {
+      "id": "rust_red",
+      "name": "Rust Red",
+      "hex": "#604953",
+      "rgb": [96, 73, 83],
+      "sampleCenter": [824, 202]
+    },
+    {
+      "id": "brown",
+      "name": "Brown",
+      "hex": "#645352",
+      "rgb": [100, 83, 82],
+      "sampleCenter": [918, 203]
+    },
+    {
+      "id": "black",
+      "name": "Black",
+      "hex": "#3E414A",
+      "rgb": [62, 65, 74],
+      "sampleCenter": [1012, 203]
+    },
+    {
+      "id": "lemon_yellow",
+      "name": "Lemon Yellow",
+      "hex": "#A99740",
+      "rgb": [169, 151, 64],
+      "sampleCenter": [224, 337]
+    },
+    {
+      "id": "apricot_yellow",
+      "name": "Apricot Yellow",
+      "hex": "#A9833C",
+      "rgb": [169, 131, 60],
+      "sampleCenter": [323, 348]
+    },
+    {
+      "id": "orange",
+      "name": "Orange",
+      "hex": "#A65037",
+      "rgb": [166, 80, 55],
+      "sampleCenter": [398, 350]
+    },
+    {
+      "id": "light_green",
+      "name": "Light Green",
+      "hex": "#6B8A3E",
+      "rgb": [107, 138, 62],
+      "sampleCenter": [483, 359]
+    },
+    {
+      "id": "green",
+      "name": "Green",
+      "hex": "#397867",
+      "rgb": [57, 120, 103],
+      "sampleCenter": [577, 359]
+    },
+    {
+      "id": "dark_green",
+      "name": "Dark Green",
+      "hex": "#305449",
+      "rgb": [48, 84, 73],
+      "sampleCenter": [647, 366]
+    },
+    {
+      "id": "lake_blue",
+      "name": "Lake Blue",
+      "hex": "#418599",
+      "rgb": [65, 133, 153],
+      "sampleCenter": [727, 373]
+    },
+    {
+      "id": "sky_blue",
+      "name": "Sky Blue",
+      "hex": "#3D6895",
+      "rgb": [61, 104, 149],
+      "sampleCenter": [799, 375]
+    },
+    {
+      "id": "navy_blue",
+      "name": "Navy Blue",
+      "hex": "#2D3485",
+      "rgb": [45, 52, 133],
+      "sampleCenter": [870, 391]
+    },
+    {
+      "id": "tattoo_blue",
+      "name": "Tattoo Blue",
+      "hex": "#2D365A",
+      "rgb": [45, 54, 90],
+      "sampleCenter": [952, 393]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "routes": [
+    { "path": "/", "title": "Create — Oh My Ink - Live AI Tattoo Experience" },
+    {
+      "path": "/?view=designs",
+      "title": "My designs — Oh My Ink - Live AI Tattoo Experience"
+    },
+    {
+      "path": "/?view=settings",
+      "title": "Settings — Oh My Ink - Live AI Tattoo Experience"
+    },
+    { "path": "/oauth/callback", "title": "Sign-in callback" }
+  ]
+}
