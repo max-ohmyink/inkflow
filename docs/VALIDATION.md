@@ -110,7 +110,7 @@ Passed TypeScript, 39 focused diagnostic/guest/filled/legacy/partial-output test
 
 The next bounded diagnostic read the actual rejected ImageService body: HTTP 400 / failed_precondition with message “your account has hit a usage exhausted”. Recent selected red/mixed palettes were persisted correctly, but all their actual outputs were unavailable. Therefore the visible artwork is the preserved original, not a completed colored design. The exact wording now classifies as exhausted usage without guessing a personal balance, charge or reset time.
 
-Guest results now show a prominent REQUESTED COLORS NOT GENERATED notice for original-only output, with distinct partial-success copy. Passed TypeScript, 17 focused provider/guest/resilience tests, combined web/API build and manifest/title/routes verification. No further image attempt, quota reset, alternate-provider substitution, fabricated color or billing action was made after confirmation. Account usage help is routed to Manus help; AI coloring remains blocked pending resolution of the service restriction.
+Guest results now show a prominent REQUESTED COLORS NOT GENERATED notice for original-only output, with distinct partial-success copy. Passed TypeScript, 17 focused provider/guest/resilience tests, combined web/API build and manifest/title/routes verification. No further image attempt, quota reset, alternate-provider substitution, fabricated color or billing action was made after confirmation. AI coloring remains blocked pending resolution of the service restriction.
 
 ## 2026-10-27 — Bloomberg Day event theme, family edit and supplied inks
 

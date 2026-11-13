@@ -14,7 +14,7 @@ export default function Root({ children }: PropsWithChildren) {
         <title>Oh My Ink - Live AI Tattoo Experience</title>
         <meta
           name="description"
-          content="Our tattoo artists’ catalog comes first. Explore a new AI design only when there’s no suitable match, choose filled colors, and enjoy your next non-permanent ink moment with the Oh My Ink team."
+          content="Describe an idea and let AI create simple tattoo designs for you, choose filled colors, and enjoy your next non-permanent ink moment with the Oh My Ink team."
         />
         <meta name="theme-color" content="#FFECDE" />
         <meta name="mobile-web-app-capable" content="yes" />

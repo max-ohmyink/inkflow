@@ -28,13 +28,6 @@ import {
   createStencilJob,
   hashCapabilityToken,
 } from "./service";
-import {
-  colorModeForCatalogPrompt,
-  colorTreatmentForCatalogPrompt,
-  catalogOptionMetadataForPrompt,
-  eligibleCatalogCount,
-  parseCatalogJobPrompt,
-} from "./catalogOutput";
 import { isColorVersionMode } from "./colorVersion";
 import { aiFallbackOptionTitle } from "./aiFallback";
 import { parseAiJobPrompt } from "./jobMetadata";
@@ -101,13 +94,10 @@ function tokenizedAssetPath(
 
 async function publicJobPayload(job: StencilJobRow, token: string) {
   const options = await listStencilOptions(job.id);
-  const catalogPrompt = parseCatalogJobPrompt(job.prompt);
   const aiPrompt = parseAiJobPrompt(job.prompt);
-  const source = catalogPrompt ? "catalog" : aiPrompt ? "ai" : "legacy";
-  const filters = catalogPrompt?.filters ?? aiPrompt?.filters;
-  const colorMode = catalogPrompt
-    ? colorModeForCatalogPrompt(job.prompt)
-    : aiPrompt?.colorMode;
+  const source = "ai" as const;
+  const filters = aiPrompt?.filters;
+  const colorMode = aiPrompt?.colorMode;
   const hasReadyColorVersion =
     job.status === "ready" && isColorVersionMode(colorMode);
   const actualTreatments = parseActualColorTreatments(job.prompt);
@@ -136,11 +126,7 @@ async function publicJobPayload(job: StencilJobRow, token: string) {
       const colorTreatment =
         hasReadyColorVersion && !colorUnavailable
           ? (actualReadyTreatment ??
-            (source === "catalog"
-              ? colorTreatmentForCatalogPrompt(job.prompt, option.optionIndex)
-              : colorMode === "monochrome"
-                ? "monochrome"
-                : undefined))
+            (colorMode === "monochrome" ? "monochrome" : undefined))
           : undefined;
       const colorStatus = colorUnavailable
         ? "failed"
@@ -148,14 +134,9 @@ async function publicJobPayload(job: StencilJobRow, token: string) {
           ? "ready"
           : undefined;
       const hasColorAsset = hasReadyColorVersion && !colorUnavailable;
-      const metadata =
-        source === "catalog"
-          ? catalogOptionMetadataForPrompt(job.prompt, option.optionIndex)
-          : undefined;
-      const title =
-        source === "ai" && aiPrompt
-          ? aiFallbackOptionTitle(aiPrompt.concept, option.optionIndex)
-          : undefined;
+      const title = aiPrompt
+        ? aiFallbackOptionTitle(aiPrompt.concept, option.optionIndex)
+        : undefined;
       return {
         id: option.id,
         index: option.optionIndex,
@@ -196,7 +177,7 @@ async function publicJobPayload(job: StencilJobRow, token: string) {
               ),
             }
           : {}),
-        ...(metadata ?? (title ? { title } : {})),
+        ...(title ? { title } : {}),
         width: option.width,
         height: option.height,
         mirrored: true,
@@ -235,10 +216,7 @@ async function redirectAsset(
     const option = (await listStencilOptions(job.id)).find(
       (candidate) => candidate.optionIndex === index,
     );
-    const catalogPrompt = parseCatalogJobPrompt(job.prompt);
-    const colorMode = catalogPrompt
-      ? colorModeForCatalogPrompt(job.prompt)
-      : parseAiJobPrompt(job.prompt)?.colorMode;
+    const colorMode = parseAiJobPrompt(job.prompt)?.colorMode;
     const key =
       kind === "stencil"
         ? option?.stencilStorageKey
@@ -281,7 +259,6 @@ export function registerStencilRoutes(app: Express): void {
             type: "enum",
             values: MEDIUM_OPTIONS.map((option) => option.id),
           },
-          catalogId: { type: "string", optional: true },
           filters: {
             type: "object",
             optional: true,
@@ -326,7 +303,7 @@ export function registerStencilRoutes(app: Express): void {
       },
       processing: {
         output:
-          "catalog or AI original PNG plus mirrored 300-DPI stencil PNG and requested derived color PNG",
+          "AI original PNG plus mirrored 300-DPI stencil PNG and requested derived color PNG",
         threshold: processing.threshold,
         minimumComponentPixels: processing.minimumComponentPixels,
         mirrored: true,
@@ -337,17 +314,9 @@ export function registerStencilRoutes(app: Express): void {
         originalImageGeneration: true,
         colorVersions: true,
         filledColorVersions: true,
-        catalogSelection: true,
-        catalogFirst: true,
-        aiFallback: true,
-        sourcePolicy: {
-          selection:
-            "catalog_first_then_ai_only_for_valid_free_text_with_zero_catalog_matches",
-          exactCatalogId: "validated_exact_catalog_only_no_ai_fallback",
-          queuedLegacy: "catalog_only_no_implicit_ai_retry",
-        },
+        aiGeneration: true,
+        sourcePolicy: { selection: "ai_only" },
         guestFilters: true,
-        catalogRecordCount: eligibleCatalogCount(),
         durableStorage: isStencilPlatformConfigured(),
         vectorSvg: await potraceIsAvailable(),
       },
@@ -371,7 +340,7 @@ export function registerStencilRoutes(app: Express): void {
         res.status(400).json({
           error:
             error.message === "instant_draw_only" ||
-            error.message === "catalog_no_match"
+            error.message === "family_design_only"
               ? error.message
               : "invalid_request",
         });

@@ -62,7 +62,6 @@ export type StencilInput = {
   clientId: string;
   requestId?: string;
   capabilityToken?: string;
-  catalogId?: string;
   filters?: CatalogFilters;
 };
 
@@ -134,15 +133,6 @@ export function parseStencilInput(body: unknown): StencilInput {
     }
     capabilityToken = value.capabilityToken;
   }
-  let catalogId: string | undefined;
-  if (value.catalogId !== undefined) {
-    if (
-      typeof value.catalogId !== "string" ||
-      !/^[a-z0-9-]{1,160}$/.test(value.catalogId)
-    )
-      throw new StencilInputError();
-    catalogId = value.catalogId;
-  }
   let filters: CatalogFilters | undefined;
   if (value.filters !== undefined) {
     try {
@@ -158,7 +148,6 @@ export function parseStencilInput(body: unknown): StencilInput {
     clientId: value.clientId,
     requestId,
     capabilityToken,
-    catalogId,
     ...(filters ? { filters } : {}),
   };
 }

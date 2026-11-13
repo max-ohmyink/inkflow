@@ -41,15 +41,15 @@ describe("guest-first tattoo experience", () => {
       option.originalUrl,
     );
     expect(artworkVersionLabel(colored)).toBe("Black + red version");
-    expect(artworkVersionLabel(colored, true)).toBe("Catalog original");
+    expect(artworkVersionLabel(colored, true)).toBe("AI original");
     expect(guestArtworkFileName("Tulip", 0, "color")).toBe(
       "Tulip-variation-1-color-version.png",
     );
     expect(guestArtworkFileName("Tulip", 0, "original")).toBe(
-      "Tulip-variation-1-catalog-original.png",
+      "Tulip-variation-1-ai-original.png",
     );
   });
-  it("keeps AI fallback and legacy originals distinct from catalog provenance", () => {
+  it("labels AI originals and color versions", () => {
     const ai = {
       ...option,
       source: "ai" as const,
@@ -59,7 +59,7 @@ describe("guest-first tattoo experience", () => {
     };
     expect(originalArtworkLabel("ai")).toBe("AI original");
     expect(compareOriginalLabel("ai")).toBe("Compare AI original");
-    expect(sourceArtworkLabel("ai")).toContain("No suitable catalog match");
+    expect(sourceArtworkLabel("ai")).toBe("AI-created design");
     expect(artworkVersionLabel(ai, true)).toBe("AI original");
     expect(artworkVersionLabel(ai)).toBe("Black + red filled version");
     expect(guestArtworkFileName("Avocado", 0, "original", "ai")).toBe(
@@ -67,9 +67,6 @@ describe("guest-first tattoo experience", () => {
     );
     expect(guestArtworkUrl(ai)).toBe(ai.colorUrl);
     expect(tattooPreviewUrl(ai, true, false)).toBe(option.pngUrl);
-    expect(artworkVersionLabel({ ...option, source: "legacy" })).toBe(
-      "Saved original",
-    );
     expect(colorTreatmentDescription(ai)).toContain("fills enclosed shapes");
     expect(
       colorTreatmentDescription({ ...ai, colorTreatment: "ink_only" }),
@@ -86,14 +83,14 @@ describe("guest-first tattoo experience", () => {
   it("keeps a ready original usable and honestly labeled when its optional color failed", () => {
     const unavailable = {
       ...option,
-      source: "catalog" as const,
+      source: "ai" as const,
       colorMode: "mixed_color" as const,
       colorStatus: "failed" as const,
       colorWarning:
         "Your design is ready, but its color version could not be completed this time.",
     };
     expect(guestArtworkUrl(unavailable)).toBe(option.originalUrl);
-    expect(artworkVersionLabel(unavailable)).toBe("Catalog original");
+    expect(artworkVersionLabel(unavailable)).toBe("AI original");
     expect(tattooPreviewUrl(unavailable, true, false)).toBe(option.pngUrl);
     expect(colorAvailabilityWarning(unavailable)).toBe(
       unavailable.colorWarning,

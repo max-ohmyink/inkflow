@@ -16,14 +16,6 @@ function readMetadata(prompt: string): Record<string, unknown> | undefined {
 }
 function expectedCount(raw: Record<string, unknown>): number | undefined {
   if (raw.mode === "ai" && raw.version === 1) return 4;
-  if (
-    raw.mode === "catalog" &&
-    raw.version === 3 &&
-    Array.isArray(raw.catalogIds) &&
-    raw.catalogIds.length >= 1 &&
-    raw.catalogIds.length <= 4
-  )
-    return raw.catalogIds.length;
   return undefined;
 }
 export function parseActualColorTreatments(

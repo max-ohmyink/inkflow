@@ -4,7 +4,7 @@ A browser-first family-event tattoo studio using the supplied Bloomberg Day 2026
 
 ## Guest experience
 
-**Generate your tattoo live!** retains a prompt, Art style and Color mix, with no Category form selector. The style menu offers **Fine Line, Old School, Traditional and Watercolor**, while an unchanged Catalog match default keeps suitable original artwork first. The current nine-design family edit is checked before AI; only a valid no-match free-text request creates a new style-specific AI original. Original sources and archived ready jobs stay available. Family/mandala exclusions remain, and classic Old School/Traditional source labels can overlap without inventing provenance.
+**Generate your tattoo live!** retains a prompt, Art style and Color mix, with no Category form selector. The style menu offers **Fine Line, Old School, Traditional and Watercolor**, while the unchanged Any art style default leaves the style open. Every request creates new AI originals (the artist catalog has been retired); old catalog jobs are no longer generated. Family/mandala exclusions remain, and classic Old School/Traditional source labels can overlap without inventing provenance.
 
 Watercolor is a digital color-wash direction. Its painted original is shown first; a selected-ink alternate remains a flat local fill, not watercolor texture. Our artist may simplify the look for live drawing. New AI style creation still requires an available image service; no restoration or generation success is claimed merely from prompt tests.
 
@@ -20,7 +20,7 @@ pnpm test
 pnpm build:all    # web-build and dist
 ```
 
-The listeners can run independently with `pnpm dev:metro` and `pnpm dev:server`. Docker includes source catalog files, serves web output and `/api` from one origin, honors `PORT` (default 3000) and exposes `/api/health`. Runtime needs MySQL and authorized Manus image/storage credentials. Full confidential PDFs/photos/font archives, credentials and capability caches are not delivered as public assets.
+The listeners can run independently with `pnpm dev:metro` and `pnpm dev:server`. Docker serves web output and `/api` from one origin, honors `PORT` (default 3000) and exposes `/api/health`. Runtime needs MySQL and an AI image provider API key (see `.env.example`). Full confidential PDFs/photos/font archives, credentials and capability caches are not delivered as public assets.
 
 ## Preservation and event operation
 

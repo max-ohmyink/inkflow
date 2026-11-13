@@ -24,13 +24,6 @@ for (const icon of manifest.icons) {
 assert.ok(
   (await stat(new URL("web-icons/apple-touch-icon.png", root))).size > 0,
 );
-const routes = JSON.parse(
-  await readFile(new URL("manus-routes.json", root), "utf8"),
-);
-assert.deepEqual(
-  routes.routes.map((route) => route.path),
-  ["/", "/?view=designs", "/?view=settings", "/oauth/callback"],
-);
 console.log(
-  "Verified browser title, owned manifest, standalone display, installation icons and all declared browser routes.",
+  "Verified browser title, owned manifest, standalone display and installation icons.",
 );

@@ -38,25 +38,25 @@ export const STYLES: {
     id: "fine_line",
     name: "Fine Line",
     detail: "A few delicate contours",
-    art: require("@/assets/catalog/inspiration/fine-line-tulip.png"),
+    art: require("@/assets/studio-art/fine-line-tulip.png"),
   },
   {
     id: "traditional",
     name: "Bold Outline",
     detail: "Clear, confident strokes",
-    art: require("@/assets/catalog/inspiration/heart-with-arrow.png"),
+    art: require("@/assets/studio-art/heart-with-arrow.png"),
   },
   {
     id: "geometric",
     name: "Simple Shapes",
     detail: "Small, open shapes",
-    art: require("@/assets/catalog/inspiration/heart-shaped-clip.png"),
+    art: require("@/assets/studio-art/heart-shaped-clip.png"),
   },
   {
     id: "cyber",
     name: "Flowing Lines",
     detail: "A few smooth curves",
-    art: require("@/assets/catalog/inspiration/ribbon.png"),
+    art: require("@/assets/studio-art/ribbon.png"),
   },
 ];
 export const MEDIA: {

@@ -4,7 +4,7 @@ import {
   type CatalogColorMix,
 } from "../shared/catalog-filters";
 
-type ArtworkSource = "catalog" | "ai" | "legacy";
+type ArtworkSource = "ai";
 type ArtworkOption = {
   originalUrl: string;
   pngUrl: string;
@@ -16,30 +16,20 @@ type ArtworkOption = {
   colorWarning?: string;
 };
 
-export function originalArtworkLabel(source?: ArtworkSource): string {
-  return source === "ai"
-    ? "AI original"
-    : source === "legacy"
-      ? "Saved original"
-      : "Catalog original";
+export function originalArtworkLabel(_source?: ArtworkSource): string {
+  return "AI original";
 }
-export function compareOriginalLabel(source?: ArtworkSource): string {
-  return source === "ai"
-    ? "Compare AI original"
-    : `Compare ${originalArtworkLabel(source).toLowerCase()}`;
+export function compareOriginalLabel(_source?: ArtworkSource): string {
+  return "Compare AI original";
 }
-export function sourceArtworkLabel(source?: ArtworkSource): string {
-  return source === "ai"
-    ? "AI-created design · No suitable catalog match"
-    : source === "legacy"
-      ? "Legacy saved artwork"
-      : "Original artist-designed catalog motif";
+export function sourceArtworkLabel(_source?: ArtworkSource): string {
+  return "AI-created design";
 }
 export function guestArtworkUrl(
   option: ArtworkOption,
-  showCatalogOriginal = false,
+  showOriginalArtwork = false,
 ): string {
-  return showCatalogOriginal
+  return showOriginalArtwork
     ? option.originalUrl
     : option.colorUrl || option.originalUrl;
 }
@@ -64,9 +54,9 @@ export function missingColorSummary(
 }
 export function artworkVersionLabel(
   option: ArtworkOption,
-  showCatalogOriginal = false,
+  showOriginalArtwork = false,
 ): string {
-  if (showCatalogOriginal || !option.colorUrl)
+  if (showOriginalArtwork || !option.colorUrl)
     return originalArtworkLabel(option.source);
   const label =
     CATALOG_COLOR_OPTIONS.find((x) => x.id === option.colorMode)?.label ||
@@ -86,27 +76,23 @@ export function tattooPreviewUrl(
   option: ArtworkOption,
   artistTools: boolean,
   showOriginal: boolean,
-  showCatalogOriginal = false,
+  showOriginalArtwork = false,
 ): string {
   return artistTools && !showOriginal
     ? option.pngUrl
-    : guestArtworkUrl(option, showCatalogOriginal);
+    : guestArtworkUrl(option, showOriginalArtwork);
 }
 export function guestArtworkFileName(
   concept: string,
   index: number,
   version?: "color" | "original",
-  source?: ArtworkSource,
+  _source?: ArtworkSource,
 ): string {
   const suffix =
     version === "color"
       ? "-color-version.png"
       : version === "original"
-        ? source === "ai"
-          ? "-ai-original.png"
-          : source === "legacy"
-            ? "-saved-original.png"
-            : "-catalog-original.png"
+        ? "-ai-original.png"
         : "-tattoo-artwork.png";
   return stencilFileName(concept, index, "png").replace(
     "-mirrored.png",

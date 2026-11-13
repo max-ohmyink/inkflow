@@ -52,18 +52,11 @@ vi.mock("../server/stencils/imageProcessor", () => ({
 }));
 
 import {
-  createCatalogJobPrompt,
-  getValidatedCatalogRecord,
-} from "../server/stencils/catalogOutput";
-import {
   createAiJobPrompt,
   parseAiJobPrompt,
 } from "../server/stencils/jobMetadata";
 import { persistActualColorTreatments } from "../server/stencils/colorOutcomes";
-import {
-  parseStencilInput,
-  StencilInputError,
-} from "../server/stencils/prompt";
+import { parseStencilInput } from "../server/stencils/prompt";
 import { registerStencilRoutes } from "../server/stencils/routes";
 import {
   createStencilJob,
@@ -194,69 +187,35 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-describe("catalog-first source decisions", () => {
-  it("returns a catalog hit without calling the AI provider or adding AI padding", async () => {
-    await createStencilJob({ ...baseInput, requestId: "catalog-hit" });
+describe("AI-only source decisions", () => {
+  it("sends every request to AI, even ideas the old catalog used to match", async () => {
+    await createStencilJob({ ...baseInput, requestId: "former-catalog-hit" });
 
-    const stored = JSON.parse(mocks.insert.mock.calls[0][0].prompt);
-    expect(stored.mode).toBe("catalog");
-    expect(stored.catalogIds).toEqual([
-      "fine-line-flower",
-      "fine-line-tulip",
-      "smile-daisy",
-      "fine-line-rose-1",
-    ]);
-    expect(mocks.generate).not.toHaveBeenCalled();
-  });
-
-  it("keeps a partial strict catalog hit catalog-only rather than issuing a contact-sheet call", async () => {
-    const partial = [getValidatedCatalogRecord("moon-with-leaf")!];
-
-    await createStencilJob({
-      ...baseInput,
-      concept: "moon with leaf",
-      requestId: "partial-catalog-hit",
-    });
-
-    const stored = JSON.parse(mocks.insert.mock.calls[0][0].prompt);
+    const stored = parseAiJobPrompt(mocks.insert.mock.calls[0][0].prompt);
     expect(stored).toMatchObject({
-      mode: "catalog",
-      catalogIds: partial.map((record) => record.id),
+      version: 1,
+      mode: "ai",
+      concept: "fine line flower",
     });
+    // Generation happens later in the queue, never while the request is accepted.
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 
-  it("uses palette as output intent, not retrieval, and rejects an invalid exact ID without fallback", async () => {
-    await createStencilJob({
+  it("ignores a legacy catalogId from an old client and still queues AI work", async () => {
+    const parsed = parseStencilInput({
       ...baseInput,
-      requestId: "palette-not-retrieval",
+      requestId: "legacy-catalog-id",
       catalogId: "fine-line-tulip",
-      filters: {
-        category: "all",
-        artStyle: "any",
-        colorMix: "red_accent",
-      },
     });
-    expect(JSON.parse(mocks.insert.mock.calls[0][0].prompt)).toMatchObject({
-      mode: "catalog",
-      catalogIds: ["fine-line-tulip"],
-      colorMode: "red_accent",
-    });
+    expect(parsed).not.toHaveProperty("catalogId");
 
-    vi.clearAllMocks();
-    mocks.findRequest.mockResolvedValue(undefined);
-    await expect(
-      createStencilJob({
-        ...baseInput,
-        requestId: "invalid-exact",
-        catalogId: "missing-catalog-id",
-      }),
-    ).rejects.toEqual(new StencilInputError("catalog_no_match"));
-    expect(mocks.insert).not.toHaveBeenCalled();
-    expect(mocks.generate).not.toHaveBeenCalled();
+    await createStencilJob(parsed);
+    expect(
+      JSON.parse(mocks.insert.mock.calls[0][0].prompt),
+    ).toMatchObject({ mode: "ai" });
   });
 
-  it("keeps frontend Surprise me catalog-first and blocks blank/mandala input before provider work", async () => {
+  it("keeps frontend Surprise me allowed and blocks blank/mandala input before provider work", async () => {
     expect(
       parseStencilInput({ ...baseInput, concept: "Surprise me" }).concept,
     ).toBe("Surprise me");
@@ -350,7 +309,28 @@ describe("persisted AI fallback", () => {
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 
-  it("fails malformed versioned source metadata without catalog or provider fallthrough", async () => {
+  it("fails an old catalog job safely without calling the provider", async () => {
+    mocks.findJob.mockResolvedValue(
+      job(
+        JSON.stringify({
+          version: 3,
+          mode: "catalog",
+          catalogIds: ["fine-line-tulip"],
+        }),
+      ),
+    );
+
+    await runStencilJob(id);
+
+    expect(mocks.generate).not.toHaveBeenCalled();
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(mocks.failed).toHaveBeenCalledWith(
+      id,
+      "Your AI tattoo ideas could not be prepared. Please create a new request to retry.",
+    );
+  });
+
+  it("fails malformed versioned source metadata without provider fallthrough", async () => {
     mocks.findJob.mockResolvedValue(
       job(JSON.stringify({ version: 999, mode: "ai", concept: "nebula" })),
     );
@@ -364,7 +344,7 @@ describe("persisted AI fallback", () => {
 });
 
 describe("public source and color compatibility", () => {
-  it("exposes AI source and a neutral concept-based title without fake catalog provenance", async () => {
+  it("exposes AI source and a neutral concept-based title", async () => {
     mocks.findJob.mockResolvedValue(
       job(
         persistActualColorTreatments(legacyAiPrompt("red_accent"), [
@@ -396,70 +376,28 @@ describe("public source and color compatibility", () => {
     });
   });
 
-  it("keeps V1 without color access and labels ready V2 color as ink_only behind capability auth", async () => {
-    const v1Prompt = JSON.stringify({
-      version: 1,
-      mode: "catalog",
-      catalogIds: ["fine-line-tulip"],
-      filters: { category: "all", artStyle: "any", colorMix: "red_accent" },
-    });
-    const v2Prompt = JSON.stringify({
-      version: 2,
-      mode: "catalog",
-      catalogIds: ["fine-line-tulip"],
-      filters: { category: "all", artStyle: "any", colorMix: "red_accent" },
-      colorMode: "red_accent",
-    });
-    const v2Id = "22222222-2222-4222-8222-222222222222";
-    mocks.findJob.mockImplementation(async (requestedId: string) => {
-      if (requestedId === id) return job(v1Prompt, "ready");
-      if (requestedId === v2Id) return { ...job(v2Prompt, "ready"), id: v2Id };
-      return undefined;
-    });
+  it("requires the capability token for color assets", async () => {
+    mocks.findJob.mockResolvedValue(
+      job(
+        persistActualColorTreatments(aiPrompt("red_accent"), [
+          "filled",
+          "filled",
+          "filled",
+          "filled",
+        ]),
+        "ready",
+      ),
+    );
 
     await withServer(async (origin) => {
-      const v1 = await fetch(`${origin}/api/stencils/${id}?token=${token}`);
-      expect(v1.status).toBe(200);
-      expect((await v1.json()).options[0]).not.toHaveProperty("colorUrl");
-
-      const v2 = await fetch(`${origin}/api/stencils/${v2Id}?token=${token}`);
-      const v2Payload = await v2.json();
-      expect(v2Payload.options[0]).toMatchObject({
-        source: "catalog",
-        colorTreatment: "ink_only",
-      });
       const forbidden = await fetch(
-        `${origin}/api/stencils/${v2Id}/options/0-color.png?token=${"b".repeat(64)}`,
+        `${origin}/api/stencils/${id}/options/0-color.png?token=${"b".repeat(64)}`,
         { redirect: "manual" },
       );
       expect(forbidden.status).toBe(401);
     });
   });
 
-  it("marks new V3 catalog colors as filled only when the color asset is ready", async () => {
-    const prompt = createCatalogJobPrompt(
-      [getValidatedCatalogRecord("fine-line-tulip")!],
-      {
-        category: "all",
-        artStyle: "any",
-        colorMix: "red_accent",
-      },
-    );
-    mocks.findJob.mockResolvedValue(
-      job(persistActualColorTreatments(prompt, ["filled"]), "ready"),
-    );
-
-    await withServer(async (origin) => {
-      const response = await fetch(
-        `${origin}/api/stencils/${id}?token=${token}`,
-      );
-      const payload = await response.json();
-      expect(payload.options[0]).toMatchObject({
-        source: "catalog",
-        colorTreatment: "filled",
-      });
-    });
-  });
   it("persists and serves actual mixed open-line and enclosed AI color outcomes rather than inferring filled from intent", async () => {
     const makeSource = async (closed: boolean) => {
       const pixels = Buffer.alloc(12 * 12 * 3, 255);
@@ -527,16 +465,8 @@ describe("public source and color compatibility", () => {
       ).toBe(true);
     });
   });
-  it("does not guess a filled label for an older ready V3 color asset without actual outcome metadata", async () => {
-    mocks.findJob.mockResolvedValue(
-      job(
-        createCatalogJobPrompt(
-          [getValidatedCatalogRecord("fine-line-tulip")!],
-          { category: "all", artStyle: "any", colorMix: "red_accent" },
-        ),
-        "ready",
-      ),
-    );
+  it("does not guess a filled label for a ready color asset without actual outcome metadata", async () => {
+    mocks.findJob.mockResolvedValue(job(aiPrompt("red_accent"), "ready"));
     await withServer(async (origin) => {
       const response = await fetch(
         `${origin}/api/stencils/${id}?token=${token}`,
@@ -546,4 +476,5 @@ describe("public source and color compatibility", () => {
       expect(payload.options[0]).not.toHaveProperty("colorTreatment");
     });
   });
+
 });

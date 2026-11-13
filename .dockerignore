@@ -1,0 +1,11 @@
+node_modules
+web-build
+dist
+uploads
+.git
+.expo
+__pycache__
+.env
+.env.*
+!.env.example
+*.log

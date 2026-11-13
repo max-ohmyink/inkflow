@@ -3,7 +3,6 @@ import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 import {
   CATALOG_STYLE_OPTIONS,
-  catalogDesignSelectionFilters,
   parseCatalogFilters,
 } from "../shared/catalog-filters";
 import {
@@ -11,12 +10,6 @@ import {
   tattooInkPalette,
   validateTattooInkIds,
 } from "../shared/tattoo-inks";
-import {
-  colorTreatmentForCatalogPrompt,
-  createCatalogJobPrompt,
-  getValidatedCatalogRecord,
-  parseCatalogJobPrompt,
-} from "../server/stencils/catalogOutput";
 import { persistActualColorTreatments } from "../server/stencils/colorOutcomes";
 import {
   createAiJobPrompt,
@@ -186,11 +179,6 @@ describe("tattoo ink palette contract", () => {
       colorMix: "custom",
       inkColors: ["black"],
     });
-    expect(catalogDesignSelectionFilters(custom)).toEqual({
-      category: "all",
-      artStyle: "illustrated",
-      colorMix: "any",
-    });
     expect(parseCatalogFilters({ artStyle: "old_school" }).artStyle).toBe(
       "old_school",
     );
@@ -217,30 +205,7 @@ describe("custom ink metadata persistence", () => {
     inkColors: ["black"] as const,
   };
 
-  it("serializes and reparses catalog and AI custom selections, including black-only custom intent", () => {
-    const record = getValidatedCatalogRecord("fine-line-tulip")!;
-    const catalogPrompt = createCatalogJobPrompt([record], {
-      ...filters,
-      inkColors: [...filters.inkColors],
-    });
-    expect(JSON.parse(catalogPrompt)).toMatchObject({
-      version: 3,
-      colorMode: "custom",
-      filters,
-      inkColors: ["black"],
-      fillEnclosedRegions: true,
-    });
-    expect(parseCatalogJobPrompt(catalogPrompt)).toMatchObject({
-      colorMode: "custom",
-      filters,
-      inkColors: ["black"],
-    });
-    expect(
-      colorTreatmentForCatalogPrompt(
-        persistActualColorTreatments(catalogPrompt, ["monochrome"]),
-      ),
-    ).toBe("monochrome");
-
+  it("serializes and reparses AI custom selections, including black-only custom intent", () => {
     const aiPrompt = createAiJobPrompt({
       version: 1,
       mode: "ai",
@@ -264,10 +229,10 @@ describe("custom ink metadata persistence", () => {
     });
 
     const tampered = JSON.stringify({
-      ...JSON.parse(catalogPrompt),
+      ...JSON.parse(aiPrompt),
       inkColors: ["red"],
     });
-    expect(parseCatalogJobPrompt(tampered)).toBeUndefined();
+    expect(parseAiJobPrompt(tampered)).toBeUndefined();
   });
 });
 

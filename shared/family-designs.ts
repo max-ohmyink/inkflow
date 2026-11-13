@@ -1,29 +1,5 @@
 import type { CatalogArtStyle } from "./catalog-filters";
 
-/**
- * The only catalog records offered or selected for newly created family-event work.
- * Their order is intentional: it is also the deterministic Surprise me order.
- */
-export const FAMILY_DESIGN_IDS = [
-  "moon-with-leaf",
-  "heart-with-arrow",
-  "heart-shaped-clip",
-  "dog-balloon",
-  "ribbon",
-  "smile-daisy",
-  "fine-line-flower",
-  "fine-line-tulip",
-  "fine-line-rose-1",
-] as const;
-
-export type FamilyDesignId = (typeof FAMILY_DESIGN_IDS)[number];
-
-const FAMILY_DESIGN_ID_SET = new Set<string>(FAMILY_DESIGN_IDS);
-
-export function isFamilyDesignId(value: unknown): value is FamilyDesignId {
-  return typeof value === "string" && FAMILY_DESIGN_ID_SET.has(value);
-}
-
 /** Art-style values accepted for newly created family-event work. */
 export const ALLOWED_FAMILY_ART_STYLE_IDS = [
   "any",

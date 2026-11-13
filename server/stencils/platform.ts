@@ -1,17 +1,10 @@
 import { BlockList, isIP } from "node:net";
 import { lookup } from "node:dns/promises";
+import fs from "node:fs";
+import path from "node:path";
 
 const MAX_GENERATED_IMAGE_BYTES = 20 * 1024 * 1024;
-const SIGNED_URL_CACHE_MS = 50 * 60 * 1000;
-
-type ImageServiceResponse = {
-  image?: {
-    url?: unknown;
-    b64Json?: unknown;
-    mimeType?: unknown;
-  };
-  error?: unknown;
-};
+const UPLOADS_DIR = path.resolve(process.cwd(), "uploads");
 
 export type ImageServiceOriginalImage =
   | {
@@ -23,8 +16,6 @@ export type ImageServiceOriginalImage =
       mimeType: "image/png";
     };
 
-type CachedUrl = { url: string; expiresAt: number };
-const signedUrlCache = new Map<string, CachedUrl>();
 
 export type SafeProviderFailure = {
   httpStatus?: number;
@@ -37,6 +28,7 @@ export type SafeProviderFailure = {
     | "invalid_request"
     | "unknown";
 };
+
 export function classifyProviderFailure(
   status: number,
   body: unknown,
@@ -47,11 +39,10 @@ export function classifyProviderFailure(
     typeof raw.code === "string" && /^[a-zA-Z_0-9-]{1,60}$/.test(raw.code)
       ? raw.code
       : undefined;
-  // Text is used only for closed-category classification and never logged, persisted or returned.
   const message =
     typeof raw.message === "string" ? raw.message.toLowerCase() : "";
   const reason: SafeProviderFailure["reason"] =
-    /credit|quota|balance|budget|payment|usage limit|usage.{0,30}exhaust/.test(
+    /credit|quota|balance|budget|payment|usage limit|usage.{0,30}exhaust|arrearage/.test(
       message,
     )
       ? "quota_or_credits"
@@ -70,6 +61,7 @@ export function classifyProviderFailure(
     reason,
   };
 }
+
 export class PlatformServiceError extends Error {
   constructor(
     message = "platform_service_unavailable",
@@ -80,53 +72,48 @@ export class PlatformServiceError extends Error {
   }
 }
 
-function platformConfig(): { baseUrl: string; apiKey: string } {
-  const baseUrl = process.env.MANUS_API_URL?.trim();
-  const apiKey = process.env.MANUS_API_KEY?.trim();
-  if (!baseUrl || !apiKey)
-    throw new PlatformServiceError("platform_not_configured");
-  return { baseUrl: baseUrl.replace(/\/+$/, ""), apiKey };
-}
-
-export function isStencilPlatformConfigured(): boolean {
+/** Check if Qwen / DashScope / OpenAI compatible provider is configured */
+function hasQwenConfig(): boolean {
   return Boolean(
-    process.env.MANUS_API_URL?.trim() && process.env.MANUS_API_KEY?.trim(),
+    (process.env.AI_API_KEY?.trim() || process.env.DASHSCOPE_API_KEY?.trim()) &&
+      (process.env.AI_BASE_URL?.trim() || process.env.AI_IMAGE_MODEL?.trim()),
   );
 }
 
-function platformUrl(path: string): URL {
-  const { baseUrl } = platformConfig();
-  return new URL(path, `${baseUrl}/`);
+function qwenConfig(): {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  size: string;
+} {
+  const apiKey =
+    process.env.AI_API_KEY?.trim() ||
+    process.env.DASHSCOPE_API_KEY?.trim() ||
+    "";
+  const baseUrl = (
+    process.env.AI_BASE_URL?.trim() ||
+    "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  ).replace(/\/+$/, "");
+  const model =
+    process.env.AI_IMAGE_MODEL?.trim() || "qwen-image-2.0-pro-2026-03-03";
+  const size = process.env.AI_IMAGE_SIZE?.trim() || "1024x1024";
+
+  if (!apiKey) {
+    throw new PlatformServiceError("platform_not_configured");
+  }
+  return { apiKey, baseUrl, model, size };
+}
+
+/**
+ * Always true: images are stored on local disk, so "configured" never gated startup.
+ * Kept as a function because the capabilities route reports it.
+ */
+export function isStencilPlatformConfigured(): boolean {
+  return true;
 }
 
 async function readError(response: Response): Promise<void> {
-  // Consume error bodies for connection reuse, but never return a remote body to guests or logs.
   await response.text().catch(() => "");
-}
-
-async function platformFetch(
-  url: URL,
-  init: RequestInit = {},
-): Promise<Response> {
-  const { apiKey } = platformConfig();
-  try {
-    return await fetch(url, {
-      ...init,
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${apiKey}`,
-        ...init.headers,
-      },
-    });
-  } catch {
-    throw new PlatformServiceError();
-  }
-}
-
-function validMimeType(value: unknown): string {
-  if (typeof value === "string" && /^image\/(png|jpeg|webp)$/i.test(value))
-    return value;
-  return "image/png";
 }
 
 function decodeImageBase64(value: unknown): Buffer | undefined {
@@ -137,8 +124,9 @@ function decodeImageBase64(value: unknown): Buffer | undefined {
   ) {
     return undefined;
   }
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return undefined;
-  const buffer = Buffer.from(value, "base64");
+  const clean = value.replace(/^data:image\/[a-z]+;base64,/i, "");
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(clean)) return undefined;
+  const buffer = Buffer.from(clean, "base64");
   return buffer.length > 0 && buffer.length <= MAX_GENERATED_IMAGE_BYTES
     ? buffer
     : undefined;
@@ -207,7 +195,7 @@ async function downloadServiceGeneratedImage(rawUrl: unknown): Promise<Buffer> {
   try {
     response = await fetch(url, {
       redirect: "error",
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(60_000),
       headers: { accept: "image/png,image/jpeg,image/webp" },
     });
   } catch {
@@ -232,48 +220,137 @@ async function downloadServiceGeneratedImage(rawUrl: unknown): Promise<Buffer> {
   return bytes;
 }
 
-/** Makes exactly one ImageService generation/edit request and returns its result bytes. */
-export async function generateImage(
+/** Generates an image using Qwen (DashScope / OpenAI compatible endpoint) */
+async function generateQwenImage(
   prompt: string,
   originalImages: ImageServiceOriginalImage[] = [],
 ): Promise<{ bytes: Buffer; mimeType: string }> {
-  const response = await platformFetch(
-    platformUrl("images.v1.ImageService/GenerateImage"),
-    {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "connect-protocol-version": "1",
-      },
-      // Omit model so ImageService selects the currently supported project default.
-      body: JSON.stringify({
-        prompt,
-        ...(originalImages.length ? { originalImages } : {}),
-      }),
-    },
-  );
+  const { apiKey, baseUrl, model, size } = qwenConfig();
+
+  let response: Response;
+  try {
+    // Qwen image models are only served by DashScope's native multimodal endpoint; the
+    // OpenAI-style /images/generations route does not exist on compatible-mode (404).
+    const useNative =
+      /dashscope/i.test(process.env.AI_VENDOR ?? "") ||
+      /dashscope|\/compatible-mode\//i.test(baseUrl);
+    if (useNative) {
+      const firstImg = originalImages[0];
+      const base64Data = !firstImg
+        ? undefined
+        : "b64Json" in firstImg && firstImg.b64Json
+          ? `data:${firstImg.mimeType};base64,${firstImg.b64Json}`
+          : "url" in firstImg
+            ? firstImg.url
+            : undefined;
+      const nativeUrl = baseUrl.replace(
+        /\/compatible-mode\/v1$/i,
+        "/api/v1/services/aigc/multimodal-generation/generation",
+      );
+      response = await fetch(nativeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          input: {
+            messages: [
+              {
+                role: "user",
+                content: [
+                  ...(base64Data ? [{ image: base64Data }] : []),
+                  { text: prompt },
+                ],
+              },
+            ],
+          },
+          parameters: {
+            n: 1,
+            size: size.replace(/x/gi, "*"),
+            watermark: false,
+          },
+        }),
+      });
+    } else {
+      response = await fetch(`${baseUrl}/images/generations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          prompt,
+          size,
+          n: 1,
+        }),
+      });
+    }
+  } catch (error) {
+    throw new PlatformServiceError("platform_service_unavailable");
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
+    // Server log only (never sent to guests): provider's own error code/message, no secrets.
+    console.error("[qwen-image-error]", {
+      status: response.status,
+      model,
+      url: response.url,
+      body,
+    });
     throw new PlatformServiceError(
       "image_generation_failed",
       classifyProviderFailure(response.status, body),
     );
   }
 
-  let result: ImageServiceResponse;
+  let result: any;
   try {
-    result = (await response.json()) as ImageServiceResponse;
+    result = await response.json();
   } catch {
     throw new PlatformServiceError("invalid_image_result");
   }
-  if (result.error || !result.image)
-    throw new PlatformServiceError("image_generation_failed");
 
-  const bytes =
-    decodeImageBase64(result.image.b64Json) ??
-    (await downloadServiceGeneratedImage(result.image.url));
-  return { bytes, mimeType: validMimeType(result.image.mimeType) };
+  // Handle standard OpenAI style ({ data: [{ url, b64_json }] })
+  if (Array.isArray(result?.data) && result.data[0]) {
+    const item = result.data[0];
+    const bytes =
+      decodeImageBase64(item.b64_json) ??
+      (await downloadServiceGeneratedImage(item.url));
+    return { bytes, mimeType: "image/png" };
+  }
+
+  // Handle DashScope multimodal style
+  const choices = result?.output?.choices;
+  if (Array.isArray(choices) && choices[0]?.message?.content) {
+    const contents = choices[0].message.content;
+    const imgItem = Array.isArray(contents)
+      ? contents.find((c: any) => c.image || c.url)
+      : undefined;
+    if (imgItem?.image || imgItem?.url) {
+      const target = imgItem.image || imgItem.url;
+      const bytes =
+        decodeImageBase64(target) ??
+        (await downloadServiceGeneratedImage(target));
+      return { bytes, mimeType: "image/png" };
+    }
+  }
+
+  throw new PlatformServiceError("invalid_image_result");
+}
+
+/** Generates an image with the configured Qwen / OpenAI-compatible provider. */
+export async function generateImage(
+  prompt: string,
+  originalImages: ImageServiceOriginalImage[] = [],
+): Promise<{ bytes: Buffer; mimeType: string }> {
+  if (!hasQwenConfig()) {
+    throw new PlatformServiceError("platform_not_configured");
+  }
+  return generateQwenImage(prompt, originalImages);
 }
 
 /** Backward-compatible name for the legacy contact-sheet caller. */
@@ -295,64 +372,39 @@ function requireAsciiKey(key: string): void {
   }
 }
 
-async function getPresignedUrl(
-  kind: "put" | "get",
-  key: string,
-): Promise<string> {
+/** Local storage file path resolver */
+function localStoragePath(key: string): string {
   requireAsciiKey(key);
-  const url = platformUrl(`v1/storage/presign/${kind}`);
-  url.searchParams.set("path", key);
-  const response = await platformFetch(url);
-  if (!response.ok) {
-    await readError(response);
-    throw new PlatformServiceError("storage_presign_failed");
-  }
-  const result = (await response.json().catch(() => null)) as {
-    url?: unknown;
-  } | null;
-  if (
-    !result ||
-    typeof result.url !== "string" ||
-    !/^https:\/\//.test(result.url)
-  ) {
-    throw new PlatformServiceError("storage_presign_failed");
-  }
-  return result.url;
+  return path.join(UPLOADS_DIR, key);
 }
 
-/** Stores an explicitly named, stable application key; callers persist this key in the database. */
+export function getLocalFilePath(key: string): string | null {
+  const filePath = localStoragePath(key);
+  return fs.existsSync(filePath) ? filePath : null;
+}
+
+/** Stores an explicitly named, stable application key on local disk. */
 export async function putStencilObject(
   key: string,
   bytes: Buffer,
-  contentType: string,
+  _contentType: string,
 ): Promise<void> {
-  const uploadUrl = await getPresignedUrl("put", key);
-  let response: Response;
   try {
-    response = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "content-type": contentType },
-      // Node's fetch accepts Buffer, while the DOM lib declaration only exposes BodyInit.
-      body: bytes as unknown as BodyInit,
-      signal: AbortSignal.timeout(30_000),
-    });
-  } catch {
-    throw new PlatformServiceError("storage_upload_failed");
-  }
-  if (!response.ok) {
-    await readError(response);
+    const filePath = localStoragePath(key);
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    await fs.promises.writeFile(filePath, bytes);
+  } catch (err) {
     throw new PlatformServiceError("storage_upload_failed");
   }
 }
 
-/** Returns a short-lived CDN URL without persisting it; cached to avoid needless presign calls. */
+/** Returns the local `/uploads` URL for a stored key. */
 export async function getCachedStencilDownloadUrl(
   key: string,
 ): Promise<string> {
-  const now = Date.now();
-  const cached = signedUrlCache.get(key);
-  if (cached && cached.expiresAt > now) return cached.url;
-  const url = await getPresignedUrl("get", key);
-  signedUrlCache.set(key, { url, expiresAt: now + SIGNED_URL_CACHE_MS });
-  return url;
+  requireAsciiKey(key);
+  return `/uploads/${key.replace(/\\/g, "/")}`;
 }

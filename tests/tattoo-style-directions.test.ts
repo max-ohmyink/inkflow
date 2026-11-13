@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import records from "../assets/catalog/inspiration/catalog-items.json";
-import traits from "../assets/catalog/inspiration/catalog-traits.json";
 import {
   CATALOG_STYLE_OPTIONS,
   catalogFilterSummary,
-  filterCatalogByChoices,
-  matchesCatalogFilters,
   parseCatalogFilters,
 } from "../shared/catalog-filters";
 import {
@@ -54,7 +50,7 @@ describe("tattoo style directions", () => {
 
     expect(
       catalogFilterSummary(parseCatalogFilters({ artStyle: "any" })),
-    ).toContain("Catalog match");
+    ).toContain("Any art style");
     expect(
       catalogFilterSummary(parseCatalogFilters({ artStyle: "illustrated" })),
     ).toContain("Playful line art");
@@ -68,35 +64,6 @@ describe("tattoo style directions", () => {
     ).toContain("Cyber & ornamental");
     expect(() => parseCatalogFilters({ artStyle: "new-school" })).toThrow(
       "invalid_catalog_filters",
-    );
-  });
-
-  it("maps Traditional only to actual old_school catalog labels and Watercolor only to genuine watercolor labels", () => {
-    const classicFlash = records.find((record) => record.id === "dragon-v-1")!;
-    expect(
-      traits.entries[classicFlash.id as keyof typeof traits.entries].artStyles,
-    ).toContain("old_school");
-    expect(matchesCatalogFilters(classicFlash, filtersFor("old_school"))).toBe(
-      true,
-    );
-    expect(matchesCatalogFilters(classicFlash, filtersFor("traditional"))).toBe(
-      true,
-    );
-
-    const watercolorMatches = filterCatalogByChoices(
-      records,
-      filtersFor("watercolor"),
-    );
-    expect(
-      watercolorMatches.every((record) => {
-        const trait = traits.entries[
-          record.id as keyof typeof traits.entries
-        ] as { artStyles: readonly string[] };
-        return trait.artStyles.includes("watercolor");
-      }),
-    ).toBe(true);
-    expect(matchesCatalogFilters(classicFlash, filtersFor("watercolor"))).toBe(
-      false,
     );
   });
 

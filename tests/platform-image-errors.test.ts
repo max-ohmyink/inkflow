@@ -12,6 +12,7 @@ import sharp from "sharp";
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 describe("safe image error diagnostics", () => {
   it("classifies provider credit/quota rejection without exposing remote text or credentials", () => {
@@ -55,8 +56,10 @@ describe("safe image error diagnostics", () => {
     ).not.toHaveProperty("providerCode");
   });
   it("retains HTTP rejection metadata on the real adapter without automatic retry or response leakage", async () => {
-    vi.stubEnv("MANUS_API_URL", "https://example.test/");
-    vi.stubEnv("MANUS_API_KEY", "private-test-key");
+    vi.stubEnv("AI_BASE_URL", "https://example.test/v1");
+    vi.stubEnv("AI_VENDOR", "");
+    vi.stubEnv("AI_API_KEY", "private-test-key");
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const fetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({

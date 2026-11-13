@@ -14,7 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { C, F, MEDIA, STYLES, StyleId, MediumId } from "@/lib/studio-theme";
+import { C, F, StyleId, MediumId } from "@/lib/studio-theme";
 import {
   absoluteAsset,
   checkStudio,
@@ -40,16 +40,12 @@ import { StudioForm } from "@/components/studio-form";
 import { EventPoster } from "@/components/event-poster";
 import { useStudioNavigation } from "@/lib/use-studio-navigation";
 import { WebAppGuide } from "@/components/web-app-guide";
-import { CatalogGallery } from "@/components/catalog-gallery";
-import { CATALOG_DESIGNS } from "@/lib/catalog-inspiration";
-import type { InspirationPreset } from "@/lib/inspiration-utils";
 import { GuestTattooMoment } from "@/components/guest-tattoo-moment";
 import { shouldResetGuestJourney } from "@/lib/guest-experience";
 import {
   DEFAULT_CATALOG_FILTERS,
   type CatalogFilters,
 } from "@/shared/catalog-filters";
-import { catalogDisplayTitle } from "@/shared/catalog-labels";
 import {
   GenerationProgress,
   PrintConfirmation,
@@ -58,7 +54,7 @@ import {
 
 type Screen = "form" | "progress" | "results" | "experience" | "print";
 export default function StudioScreen() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     AvenirNextRegular: require("@/assets/fonts/event/AvenirNextPForBBG-Regular.otf"),
     AvenirNextMedium: require("@/assets/fonts/event/AvenirNextPForBBG-Medium.otf"),
     AvenirNextDemi: require("@/assets/fonts/event/AvenirNextPForBBG-Demi.otf"),
@@ -75,6 +71,7 @@ export default function StudioScreen() {
   const [library, setLibrary] = useState<SavedJob[]>([]);
   const [error, setError] = useState("");
   const [online, setOnline] = useState<boolean | null>(null);
+  const [offline, setOffline] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [unconfirmedRequest, setUnconfirmedRequest] = useState(false);
   const [showOriginal, setShowOriginal] = useState(true);
@@ -89,17 +86,12 @@ export default function StudioScreen() {
   const [catalogFilters, setCatalogFilters] = useState<CatalogFilters>({
     ...DEFAULT_CATALOG_FILTERS,
   });
-  const [inspiration, setInspiration] = useState<InspirationPreset | null>(
-    null,
-  );
-  const galleryTop = useRef(0);
   const submitLock = useRef(false);
   const lastRequest = useRef<{
     concept: string;
     style: StyleId;
     medium: MediumId;
     requestId: string;
-    catalogId?: string;
     filters?: CatalogFilters;
   } | null>(null);
   const scroll = useRef<ScrollView>(null);
@@ -107,6 +99,13 @@ export default function StudioScreen() {
   useEffect(() => {
     loadLibrary().then(setLibrary);
     checkStudio().then(setOnline);
+    const syncOffline = () =>
+      setOffline(typeof navigator !== "undefined" && navigator.onLine === false);
+    syncOffline();
+    if (typeof window !== "undefined" && window.addEventListener) {
+      window.addEventListener("online", syncOffline);
+      window.addEventListener("offline", syncOffline);
+    }
     loadPendingRequest().then((pending) => {
       if (!pending) return;
       lastRequest.current = pending;
@@ -121,6 +120,12 @@ export default function StudioScreen() {
     AsyncStorage.getItem("ohmyink:print-size").then((v) => {
       if (v && [40, 60, 80, 100].includes(Number(v))) setSizeMm(Number(v));
     });
+    return () => {
+      if (typeof window !== "undefined" && window.removeEventListener) {
+        window.removeEventListener("online", syncOffline);
+        window.removeEventListener("offline", syncOffline);
+      }
+    };
   }, []);
   useEffect(() => {
     scroll.current?.scrollTo({ y: 0, animated: false });
@@ -131,7 +136,6 @@ export default function StudioScreen() {
   useEffect(() => {
     if (!shouldResetGuestJourney(tab, screen)) return;
     setSelectedOption(null);
-    setInspiration(null);
     setCatalogFilters({ ...DEFAULT_CATALOG_FILTERS });
     setScreen("form");
   }, [tab, screen]);
@@ -140,12 +144,19 @@ export default function StudioScreen() {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     let failures = 0;
+    const startedAt = Date.now();
     const poll = async () => {
       try {
         const data = await getStencil(saved);
         if (stopped) return;
         setJob(data);
-        setError("");
+        setError(
+          data.status !== "ready" &&
+            data.status !== "failed" &&
+            Date.now() - startedAt > 90000
+            ? "This is taking longer than usual. You can keep waiting or start a new search."
+            : "",
+        );
         failures = 0;
         if (data.status === "ready") {
           setScreen("results");
@@ -156,9 +167,18 @@ export default function StudioScreen() {
           setScreen("progress");
           return;
         }
-        timer = setTimeout(poll, 3000);
+        // Poll aggressively so a finished design appears almost immediately.
+        timer = setTimeout(poll, Date.now() - startedAt < 10000 ? 300 : 800);
       } catch (e) {
         if (stopped) return;
+        if (
+          e instanceof StudioRequestError &&
+          (e.status === 401 || e.status === 404)
+        ) {
+          // Access is gone for good; retrying can never succeed.
+          setError(e.message);
+          return;
+        }
         failures += 1;
         if (failures >= 4) {
           setError(
@@ -181,7 +201,6 @@ export default function StudioScreen() {
     style: StyleId,
     medium: MediumId,
     reuseRequest = false,
-    catalogId?: string,
     filters: CatalogFilters = DEFAULT_CATALOG_FILTERS,
   ) => {
     if (submitLock.current) return;
@@ -202,7 +221,6 @@ export default function StudioScreen() {
       style,
       medium,
       requestId,
-      catalogId,
       filters: { ...filters },
     };
     try {
@@ -211,7 +229,6 @@ export default function StudioScreen() {
         style,
         medium,
         requestId,
-        catalogId,
         filters,
       );
       setUnconfirmedRequest(false);
@@ -249,7 +266,6 @@ export default function StudioScreen() {
         request.style,
         request.medium,
         !saved,
-        "catalogId" in request ? request.catalogId : undefined,
         request.filters || { ...DEFAULT_CATALOG_FILTERS },
       );
   };
@@ -273,7 +289,6 @@ export default function StudioScreen() {
     setError("");
     setShowOriginal(true);
     setSelectedOption(null);
-    setInspiration(null);
     setCatalogFilters({ ...DEFAULT_CATALOG_FILTERS });
     setSaved(null);
     setJob(null);
@@ -311,10 +326,10 @@ export default function StudioScreen() {
   };
   const updateSize = (size: number) => {
     setSizeMm(size);
-    AsyncStorage.setItem("ohmyink:print-size", String(size));
+    AsyncStorage.setItem("ohmyink:print-size", String(size)).catch(() => {});
   };
 
-  if (!fontsLoaded)
+  if (!fontsLoaded && !fontError)
     return (
       <View
         style={{
@@ -348,10 +363,16 @@ export default function StudioScreen() {
                   <View
                     style={[
                       s.liveDot,
-                      online === false && { backgroundColor: C.red },
+                      (online === false || offline) && {
+                        backgroundColor: C.red,
+                      },
                     ]}
                   />
-                  <Text style={s.liveText}>BLOOMBERG DAY 2026 · LIVE</Text>
+                  <Text style={s.liveText}>
+                    {offline
+                      ? "BLOOMBERG DAY 2026 · OFFLINE"
+                      : "BLOOMBERG DAY 2026 · LIVE"}
+                  </Text>
                 </View>
                 <Text style={s.introNote}>A LITTLE ART. A LITTLE YOU.</Text>
               </View>
@@ -373,71 +394,29 @@ export default function StudioScreen() {
                   ]}
                 >
                   <StudioForm
-                    onGenerate={(concept, style, medium, catalogId, filters) =>
-                      generate(
-                        concept,
-                        style,
-                        medium,
-                        false,
-                        catalogId,
-                        filters,
-                      )
+                    onGenerate={(concept, style, medium, filters) =>
+                      generate(concept, style, medium, false, filters)
                     }
                     filters={catalogFilters}
                     onFiltersChange={setCatalogFilters}
                     busy={submitting}
-                    inspiration={inspiration}
-                    inspirationCount={CATALOG_DESIGNS.length}
+                    offline={offline}
                     externalError={error}
                     initialQuery={lastRequest.current?.concept}
-                    onBrowseInspiration={() =>
-                      scroll.current?.scrollTo({
-                        y: galleryTop.current + insets.top,
-                        animated: true,
-                      })
-                    }
                   />
                 </View>
-              </View>
-              <View
-                onLayout={(event) => {
-                  galleryTop.current = event.nativeEvent.layout.y;
-                }}
-              >
-                <CatalogGallery
-                  filters={catalogFilters}
-                  onFiltersChange={setCatalogFilters}
-                  selectedId={inspiration?.id}
-                  onUse={(item) => {
-                    setInspiration((previous) => ({
-                      id: item.id,
-                      title: catalogDisplayTitle(item),
-                      concept: catalogDisplayTitle(item),
-                      style: item.style,
-                      version: (previous?.version || 0) + 1,
-                    }));
-                    void generate(
-                      catalogDisplayTitle(item),
-                      item.style,
-                      "blackwork",
-                      false,
-                      item.id,
-                      catalogFilters,
-                    );
-                  }}
-                />
               </View>
               <View style={s.howStrip}>
                 {[
                   [
                     "01",
                     "FIND YOUR VIBE",
-                    "Tell us a theme or browse a collection.",
+                    "Tell us a theme or a little idea.",
                   ],
                   [
                     "02",
-                    "CATALOG FIRST. THEN AI.",
-                    "Artists’ designs first. A new AI idea if there’s no match.",
+                    "CREATED BY AI.",
+                    "Simple, family-friendly designs made just for you.",
                   ],
                   [
                     "03",
@@ -495,7 +474,12 @@ export default function StudioScreen() {
                       color={C.accentInk}
                     />
                     <Text style={s.errorText}>{error}</Text>
-                    <Pressable onPress={() => setError("")}>
+                    <Pressable
+                      onPress={() => setError("")}
+                      accessibilityRole="button"
+                      accessibilityLabel="Dismiss message"
+                      hitSlop={12}
+                    >
                       <Feather name="x" size={18} color={C.muted} />
                     </Pressable>
                   </View>
@@ -525,7 +509,6 @@ export default function StudioScreen() {
                 option={selectedOption}
                 onBack={() => setScreen("results")}
                 onNew={newDesign}
-                onArtistPrint={() => void print(selectedOption)}
               />
             )}
           {tab === "create" && screen === "print" && (
@@ -555,8 +538,7 @@ export default function StudioScreen() {
                     YOUR STORY STARTS WITH AN IDEA.
                   </Text>
                   <Text style={s.secondaryCopy}>
-                    Your catalog finds and AI-created tattoo choices will be
-                    waiting here.
+                    Your AI-created tattoo choices will be waiting here.
                   </Text>
                   <PrimaryButton
                     text="Find my first tattoo"
@@ -570,31 +552,18 @@ export default function StudioScreen() {
                     <Pressable
                       key={record.id}
                       onPress={() => openSaved(record)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open saved design: ${record.concept}`}
                       style={s.libraryRow}
                     >
-                      {record.catalogId &&
-                      CATALOG_DESIGNS.find(
-                        (item) => item.id === record.catalogId,
-                      ) ? (
-                        <Image
-                          source={
-                            CATALOG_DESIGNS.find(
-                              (item) => item.id === record.catalogId,
-                            )!.art
-                          }
-                          resizeMode="contain"
-                          style={s.libraryThumb}
-                        />
-                      ) : (
-                        <View
-                          style={[
-                            s.libraryThumb,
-                            { alignItems: "center", justifyContent: "center" },
-                          ]}
-                        >
-                          <Feather name="bookmark" size={21} color={C.dark} />
-                        </View>
-                      )}
+                      <View
+                        style={[
+                          s.libraryThumb,
+                          { alignItems: "center", justifyContent: "center" },
+                        ]}
+                      >
+                        <Feather name="bookmark" size={21} color={C.dark} />
+                      </View>
                       <View style={{ flex: 1, gap: 7 }}>
                         <Text style={s.libraryConcept}>{record.concept}</Text>
                         <Text style={s.libraryDetail}>
@@ -633,6 +602,9 @@ export default function StudioScreen() {
                   {[40, 60, 80, 100].map((size) => (
                     <Pressable
                       onPress={() => updateSize(size)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Print width ${size} millimetres`}
+                      accessibilityState={{ selected: size === sizeMm }}
                       key={size}
                       style={[
                         s.sizeButton,
@@ -705,7 +677,6 @@ export default function StudioScreen() {
                   icon="trash-2"
                 />
               </View>
-              <WebAppGuide />
             </View>
           )}
           <StudioFooter />
@@ -727,7 +698,13 @@ export default function StudioScreen() {
             <PrimaryButton
               text="Clear history"
               onPress={async () => {
-                await removeLocalHistory();
+                try {
+                  await removeLocalHistory();
+                } catch {
+                  setClearModal(false);
+                  setError("Could not clear history on this device. Please try again.");
+                  return;
+                }
                 setUnconfirmedRequest(false);
                 lastRequest.current = null;
                 setLibrary([]);
@@ -790,75 +767,6 @@ const s = StyleSheet.create({
     letterSpacing: 1.65,
     marginBottom: 14,
   },
-  heroHeading: {
-    fontFamily: F.heading,
-    fontSize: 59,
-    color: C.text,
-    lineHeight: 70,
-  },
-  heroSerif: { fontFamily: F.serif, color: C.accentInk, fontSize: 70 },
-  heroCopy: {
-    fontFamily: F.body,
-    color: C.muted,
-    fontSize: 11,
-    lineHeight: 20,
-    marginTop: 18,
-  },
-  featuredWrap: { marginTop: 30, paddingHorizontal: 8, paddingBottom: 7 },
-  featuredCard: {
-    backgroundColor: "#F9F8F3",
-    padding: 14,
-    borderRadius: 3,
-    transform: [{ rotate: "-4deg" }],
-  },
-  featuredTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  flashLabel: {
-    fontFamily: F.bold,
-    fontSize: 7,
-    color: "#646456",
-    letterSpacing: 1,
-  },
-  featuredArt: { width: "100%", height: 190, marginVertical: 6 },
-  featuredBottom: {
-    paddingTop: 9,
-    borderTopColor: "#DADACF",
-    borderTopWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  featuredName: {
-    fontFamily: F.heading,
-    color: "#262622",
-    fontSize: 14,
-    letterSpacing: 1,
-  },
-  featuredSub: { fontFamily: F.body, color: "#66665C", fontSize: 8 },
-  featuredTag: {
-    backgroundColor: C.yellow,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    padding: 8,
-    alignSelf: "flex-end",
-    marginTop: -4,
-    transform: [{ rotate: "-4deg" }],
-    borderRadius: 2,
-  },
-  featuredTagText: {
-    fontFamily: F.bold,
-    color: C.dark,
-    fontSize: 7,
-    letterSpacing: 1,
-  },
-  promise: { marginTop: 24, gap: 10 },
-  promiseItem: { flexDirection: "row", alignItems: "center", gap: 8 },
-  promiseText: { fontFamily: F.body, color: "#B3B2A5", fontSize: 9 },
   formColumn: {
     flex: 1,
     backgroundColor: C.white,

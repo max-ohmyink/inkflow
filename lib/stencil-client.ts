@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
-import { getApiBaseUrl } from "../constants/oauth";
+import { getApiBaseUrl } from "../constants/api";
 import { INSTANT_DRAW_MESSAGE } from "../shared/instant-draw";
 import type { StyleId, MediumId } from "./studio-theme";
 import {
@@ -9,7 +9,7 @@ import {
   type CatalogColorMix,
 } from "../shared/catalog-filters";
 
-export type ArtworkSource = "catalog" | "ai" | "legacy";
+export type ArtworkSource = "ai";
 export type StencilOption = {
   id: string;
   index: number;
@@ -24,12 +24,8 @@ export type StencilOption = {
   width: number;
   height: number;
   mirrored: true;
-  catalogId?: string;
   title?: string;
-  collection?: string;
   source?: ArtworkSource;
-  page?: number;
-  titleIsGenerated?: boolean;
 };
 export type StencilJob = {
   id: string;
@@ -53,7 +49,6 @@ export type SavedJob = {
   style: StyleId;
   medium: MediumId;
   createdAt: string;
-  catalogId?: string;
   filters?: CatalogFilters;
 };
 export type PendingRequest = {
@@ -64,7 +59,6 @@ export type PendingRequest = {
   requestId: string;
   capabilityToken: string;
   createdAt: string;
-  catalogId?: string;
   filters?: CatalogFilters;
 };
 const LIBRARY_KEY = "ohmyink:stencil-library:v1";
@@ -98,10 +92,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const messages: Record<string, string> = {
       invalid_request:
-        "Please enter a valid catalog theme or choose a design below.",
+        "Please enter a valid tattoo idea and try again.",
       instant_draw_only: INSTANT_DRAW_MESSAGE,
-      catalog_no_match:
-        "This catalog choice doesn’t fit the selected art style. Choose another design or Any art style. Enter your own prompt for catalog-first discovery with AI fallback.",
       generation_limit_reached:
         "Two designs are already in progress on this device. Open My designs and wait for them to finish.",
       service_unavailable:
@@ -111,12 +103,19 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
         "This request was already accepted, but its saved access credential does not match.",
       asset_unavailable:
         "The stencil file is temporarily unavailable. Please try again.",
+      family_design_only:
+        "We keep designs family-friendly. Please try a different theme or pick a design below.",
+      origin_not_allowed:
+        "This page can’t reach the studio from here. Please open the studio from its main address.",
+      not_found: "That design could not be found. Please start a new search.",
+      color_version_unavailable:
+        "The color version isn’t ready yet. Showing the original design instead.",
+      pending_request_unresolved:
+        "An earlier request still needs confirmation. Please reconnect first.",
     };
     throw new StudioRequestError(
       messages[json.error] ||
-        json.error ||
-        json.message ||
-        "Unable to complete this request.",
+        "Unable to complete this request. Please try again.",
       json.error || "unknown_error",
       response.status,
     );
@@ -135,7 +134,6 @@ export async function createStencil(
   style: StyleId,
   medium: MediumId,
   requestId: string,
-  catalogId?: string,
   filters: CatalogFilters = DEFAULT_CATALOG_FILTERS,
 ): Promise<SavedJob> {
   let clientId = await AsyncStorage.getItem(CLIENT_KEY);
@@ -165,7 +163,6 @@ export async function createStencil(
       capabilityToken,
       createdAt: new Date().toISOString(),
       filters: { ...filters },
-      ...(catalogId ? { catalogId } : {}),
     };
     // Persist before the first network call. Retries can prove ownership without reissuing secrets.
     await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(pending));
@@ -177,7 +174,11 @@ export async function createStencil(
       body: JSON.stringify(pending),
     });
   } catch (failure) {
-    if (failure instanceof StudioRequestError && failure.status === 400)
+    // Definitive server rejections never created a job, so nothing is left to recover.
+    if (
+      failure instanceof StudioRequestError &&
+      [400, 409, 429].includes(failure.status)
+    )
       await AsyncStorage.removeItem(PENDING_KEY);
     throw failure;
   }
@@ -189,7 +190,6 @@ export async function createStencil(
     medium: pending.medium,
     createdAt: pending.createdAt,
     filters: pending.filters || { ...DEFAULT_CATALOG_FILTERS },
-    ...(pending.catalogId ? { catalogId: pending.catalogId } : {}),
   };
   const list = await loadLibrary();
   await AsyncStorage.setItem(

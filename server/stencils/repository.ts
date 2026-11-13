@@ -74,7 +74,7 @@ export async function markJobGenerating(
     .update(stencilJobs)
     .set({
       status: "generating",
-      stage: "Selecting catalog designs",
+      stage: "Creating AI designs",
       progress: 12,
       workerId,
       startedAt: new Date(),
@@ -164,7 +164,7 @@ export async function failOrphanedInProcessStencilJobs(): Promise<number> {
       stage: "Failed",
       progress: 100,
       error:
-        "Catalog selection did not finish. Please create a new request to retry.",
+        "Your AI tattoo ideas did not finish. Please create a new request to retry.",
       workerId: null,
     })
     .where(inArray(stencilJobs.status, [...ACTIVE_STATUSES]));

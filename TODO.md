@@ -6,7 +6,7 @@
 - [x] 圖片後製：每張逐一清理背景雜訊，背景 #FFFFFF，閾值提升至清楚濃黑線條，自动水平鏡像且只鏡像一次；保存原解析度處理 PNG，保留原始彩色作品以區分彩色媒材與黑白轉印。非對稱像素鏡像及純二值化測試通過；真實生成有四個鏡像 PNG 與 SVG path 向量輸出。
 - [x] 預覽與列印：四張已後製鏡像作品卡片各有 Select & Print；使用原解析度 PNG，Web 系統列印、iOS AirPrint 原生列印流程；顯示 Sending to Printer... Please see your artist! 並正確處理取消／錯誤，不宣稱未證實的實體列印成功。Web 无法辨識使用者按取消或列印，界面與说明明確告知；實體 iPad／印表機的 AirPrint 及尺寸試印仍需活動前驗證。
 - [x] 完整程式碼與部署交付：環境變數範本、生成及圖片處理工作流程設定、繁體中文部署／現場 iPad 加入主畫面操作說明、原生 Dashboard 建置說明與完整原始碼壓縮檔。包含 Dockerfile 與後端健康檢查 deployment declaration。
-- [x] 整合確認與保存：TypeScript、必要自動化測試、兩個服務健康檢查及單一唯讀驗證代理均已完成；驗證代理指出的兩個 recovery 問題已修正並通過回歸測試。修正後最終 Expo Web 匯出通過，來源保存至 Manus Version history 並交付完整源碼包。原生發行檔及實體印表機結果不在本次已驗證範圍內。
+- [x] 整合確認與保存：TypeScript、必要自動化測試、兩個服務健康檢查及單一唯讀驗證代理均已完成；驗證代理指出的兩個 recovery 問題已修正並通過回歸測試。修正後最終 Expo Web 匯出通過，並交付完整源碼包。原生發行檔及實體印表機結果不在本次已驗證範圍內。
 
 - [x] Product naming: rename the app to exactly **Oh My Ink AI Tattoo Experience** in Expo display metadata, the customer-facing header/footer, print document naming, documentation, and refreshed source-code delivery; preserve the existing appSlug, URL scheme, bundle identifiers, catalog artwork and functionality.
 

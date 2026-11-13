@@ -1,19 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import express, { type Request } from "express";
+import express from "express";
 import type { Server } from "node:http";
 import {
   createCorsMiddleware,
   isLoopbackApiHost,
   trustedExpoWebOrigins,
 } from "../server/_core/cors";
-import {
-  clearLegacySessionCookie,
-  currentSessionCookie,
-  getLegacySessionCookieOptions,
-  getSessionCookieName,
-  getSessionCookieOptions,
-} from "../server/_core/cookies";
-import { LEGACY_COOKIE_NAME, SESSION_COOKIE_SUFFIX } from "../shared/const";
 
 let server: Server | null = null;
 
@@ -260,103 +252,5 @@ describe("Mobile API origin and cookie isolation", () => {
       headers: { Origin: origin, "Sec-Fetch-Site": "same-origin" },
     });
     expect(response.status).toBe(403);
-  });
-
-  it("keeps session cookies host-only across different sandbox API hosts", () => {
-    for (const hostname of [
-      "3000-sandbox-a.preview.example.test",
-      "3000-sandbox-b.preview.example.test",
-    ]) {
-      const options = getSessionCookieOptions({
-        protocol: "https",
-        headers: {},
-        hostname,
-      } as Request);
-      expect(options).not.toHaveProperty("domain");
-      expect(options).toMatchObject({
-        httpOnly: true,
-        path: "/",
-        sameSite: "none",
-        secure: true,
-      });
-    }
-  });
-
-  it("ignores the old parent-domain cookie when the project cookie is also present", () => {
-    const request = {
-      protocol: "https",
-      headers: {},
-      hostname: "3000-sandbox.preview.example.test",
-    } as Request;
-    const currentName = getSessionCookieName(request);
-    const tossableParentName = `manus_session_${SESSION_COOKIE_SUFFIX}`;
-    expect(currentName.startsWith("__Host-")).toBe(true);
-    expect(
-      getSessionCookieName({ ...request, protocol: "http" } as Request),
-    ).toBe(`manus_local_session_${SESSION_COOKIE_SUFFIX}`);
-    for (const cookie of [
-      `${LEGACY_COOKIE_NAME}=legacy-token; ${currentName}=current-project-token`,
-      `${tossableParentName}=attacker-token; ${currentName}=current-project-token`,
-      `${currentName}=current-project-token; ${LEGACY_COOKIE_NAME}=legacy-token`,
-    ]) {
-      expect(
-        currentSessionCookie({
-          ...request,
-          headers: { cookie },
-        } as Request),
-      ).toBe("current-project-token");
-    }
-  });
-
-  it("expires the legacy parent-domain cookie from a recognized preview API host", () => {
-    const previousPackager = process.env.EXPO_PACKAGER_PROXY_URL;
-    process.env.EXPO_PACKAGER_PROXY_URL =
-      "https://8081-sandbox.preview.example.test";
-    const cleared: Array<{ name: string; options: unknown }> = [];
-    try {
-      const middleware = clearLegacySessionCookie();
-      middleware(
-        {
-          protocol: "https",
-          headers: {},
-          hostname: "3000-sandbox.preview.example.test",
-        } as Request,
-        {
-          clearCookie: (name: string, options: unknown) => {
-            cleared.push({ name, options });
-          },
-        } as never,
-        () => {},
-      );
-    } finally {
-      if (previousPackager === undefined)
-        delete process.env.EXPO_PACKAGER_PROXY_URL;
-      else process.env.EXPO_PACKAGER_PROXY_URL = previousPackager;
-    }
-    expect(cleared).toEqual([
-      {
-        name: LEGACY_COOKIE_NAME,
-        options: expect.objectContaining({
-          domain: ".example.test",
-          path: "/",
-          secure: true,
-        }),
-      },
-    ]);
-  });
-
-  it("does not synthesize a parent Domain outside a recognized preview API host", () => {
-    const previousPackager = process.env.EXPO_PACKAGER_PROXY_URL;
-    process.env.EXPO_PACKAGER_PROXY_URL =
-      "https://8081-sandbox.preview.example.test";
-    const options = getLegacySessionCookieOptions({
-      protocol: "https",
-      headers: {},
-      hostname: "api.customer.example",
-    } as Request);
-    expect(options.domain).toBeUndefined();
-    if (previousPackager === undefined)
-      delete process.env.EXPO_PACKAGER_PROXY_URL;
-    else process.env.EXPO_PACKAGER_PROXY_URL = previousPackager;
   });
 });

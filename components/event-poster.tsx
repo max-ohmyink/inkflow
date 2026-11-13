@@ -1,7 +1,6 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { C, F, STYLES } from "@/lib/studio-theme";
-import { CATALOG_DESIGNS } from "@/lib/catalog-inspiration";
 
 export function EventPoster({ compact }: { compact: boolean }) {
   return (
@@ -25,8 +24,8 @@ export function EventPoster({ compact }: { compact: boolean }) {
       </Text>
       <View style={s.bottom}>
         <View style={s.caption}>
-          <Text style={s.bigNumber}>{CATALOG_DESIGNS.length}</Text>
-          <Text style={s.shortCopy}>SIMPLE FAMILY{"\n"}CATALOG ORIGINALS</Text>
+          <Text style={s.bigNumber}>AI</Text>
+          <Text style={s.shortCopy}>SIMPLE FAMILY{"\n"}TATTOO DESIGNS</Text>
           <Text style={s.promise}>Needle-free.{"\n"}Non-permanent.</Text>
         </View>
         <View style={s.artCard}>

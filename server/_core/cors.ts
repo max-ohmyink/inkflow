@@ -134,7 +134,11 @@ export function createCorsMiddleware(
     const allowedConfiguredOrigin =
       !loopbackOrigin && allowedOrigins.has(origin);
     const allowedSameOrigin = isSameOriginWebRequest(req, origin);
-    if (!allowedConfiguredOrigin && !allowedLocalOrigin && !allowedSameOrigin) {
+    if (
+      !allowedConfiguredOrigin &&
+      !allowedLocalOrigin &&
+      !allowedSameOrigin
+    ) {
       res.status(403).json({ error: "origin_not_allowed" });
       return;
     }
@@ -149,10 +153,12 @@ export function createCorsMiddleware(
       "Content-Type, Accept, Authorization, X-Requested-With",
     );
     res.header("Access-Control-Allow-Credentials", "true");
+
     if (req.method === "OPTIONS") {
       res.sendStatus(204);
       return;
     }
+
     next();
   };
 }

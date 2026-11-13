@@ -8,7 +8,7 @@ Provide an application-owned Web App Manifest, the existing brand icon in web si
 
 Add explicit mirrored PNG and SVG download actions to each completed option, using the existing token-protected file endpoints and full-resolution bytes. Keep the original-versus-stencil toggle and browser system printing; a browser print dialog is not physical-printer confirmation.
 
-Use the existing Docker production container to serve the exported web frontend and `/api` on one origin. Add repeatable `build:web` and `build:all` scripts and use them in the container. Preserve fixed development listeners 8081/3000; the Manus project remains on its managed Expo scaffold because its project-kind conversion is not exposed by the configured tools. The delivered runtime is nonetheless a standalone browser web app.
+Use the existing Docker production container to serve the exported web frontend and `/api` on one origin. Add repeatable `build:web` and `build:all` scripts and use them in the container. Preserve fixed development listeners 8081/3000. The delivered runtime is a standalone browser web app.
 
 ## Project structure
 

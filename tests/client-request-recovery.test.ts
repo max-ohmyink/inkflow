@@ -23,7 +23,7 @@ vi.mock("expo-crypto", () => ({
   randomUUID: () => "test-device",
   getRandomBytesAsync: mocks.random,
 }));
-vi.mock("../constants/oauth", () => ({ getApiBaseUrl: () => "" }));
+vi.mock("../constants/api", () => ({ getApiBaseUrl: () => "" }));
 import { createStencil, loadPendingRequest } from "../lib/stencil-client";
 const key = "ohmyink:pending-request:v1";
 const filters = {
@@ -46,7 +46,6 @@ describe("client pending credential protection", () => {
         "fine_line",
         "blackwork",
         "first",
-        undefined,
         filters,
       ),
     ).rejects.toThrow("lost response");
@@ -69,7 +68,6 @@ describe("client pending credential protection", () => {
         "fine_line",
         "blackwork",
         "first",
-        undefined,
         filters,
       ),
     ).rejects.toThrow();
@@ -104,7 +102,7 @@ describe("client pending credential protection", () => {
     mocks.fetch.mockResolvedValueOnce({
       ok: false,
       status: 400,
-      json: async () => ({ error: "catalog_no_match" }),
+      json: async () => ({ error: "invalid_request" }),
     });
     await expect(
       createStencil("unmatched", "fine_line", "blackwork", "first"),

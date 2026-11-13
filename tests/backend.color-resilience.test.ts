@@ -85,10 +85,6 @@ vi.mock("../server/stencils/imageProcessor", () => ({
 }));
 
 import {
-  createCatalogJobPrompt,
-  getValidatedCatalogRecord,
-} from "../server/stencils/catalogOutput";
-import {
   parseActualColorTreatments,
   persistActualColorTreatments,
 } from "../server/stencils/colorOutcomes";
@@ -99,14 +95,19 @@ import { hashCapabilityToken, runStencilJob } from "../server/stencils/service";
 const token = "a".repeat(64);
 const id = "11111111-1111-4111-8111-111111111111";
 
-function colorCatalogPrompt(): string {
-  return createCatalogJobPrompt(
-    [
-      getValidatedCatalogRecord("fine-line-rose-1")!,
-      getValidatedCatalogRecord("fine-line-rose-2")!,
-    ],
-    { category: "all", artStyle: "any", colorMix: "mixed_color" },
-  );
+function colorAiPrompt(
+  colorMode: "red_accent" | "mixed_color" = "mixed_color",
+): string {
+  return createAiJobPrompt({
+    version: 1,
+    mode: "ai",
+    concept: "rose",
+    style: "fine_line",
+    medium: "blackwork",
+    filters: { category: "all", artStyle: "any", colorMix: colorMode },
+    colorMode,
+    fillEnclosedRegions: true,
+  });
 }
 
 function queuedJob(prompt: string) {
@@ -172,49 +173,56 @@ beforeEach(() => {
   mocks.options.mockResolvedValue([]);
   mocks.put.mockResolvedValue(undefined);
   mocks.save.mockResolvedValue(undefined);
-  mocks.split.mockResolvedValue([]);
+  mocks.split.mockResolvedValue(
+    [0, 1, 2, 3].map((index) => ({
+      index,
+      bytes: Buffer.from(`original-${index}`),
+      width: 32,
+      height: 32,
+    })),
+  );
 });
 
 describe("optional filled color resilience", () => {
-  it("records one unavailable V3 option, continues once per remaining option, and keeps original-derived assets ready", async () => {
-    const prompt = colorCatalogPrompt();
+  it("records one unavailable AI option, continues once per remaining option, and keeps original-derived assets ready", async () => {
+    const prompt = colorAiPrompt();
     mocks.findJob.mockResolvedValue(queuedJob(prompt));
-    mocks.color
-      .mockRejectedValueOnce(new mocks.ColorVersionError())
-      .mockResolvedValueOnce({
-        png: Buffer.from("second-colored"),
-        treatment: "filled",
-        width: 64,
-        height: 64,
-      });
+    mocks.color.mockRejectedValueOnce(new mocks.ColorVersionError());
 
     await runStencilJob(id);
 
-    expect(mocks.color).toHaveBeenCalledTimes(2);
+    expect(mocks.color).toHaveBeenCalledTimes(4);
     expect(mocks.failed).not.toHaveBeenCalled();
     expect(mocks.save).toHaveBeenCalledOnce();
     const [savedId, savedOptions, readyPrompt] = mocks.save.mock.calls[0];
     expect(savedId).toBe(id);
-    expect(savedOptions).toHaveLength(2);
+    expect(savedOptions).toHaveLength(4);
     expect(JSON.parse(readyPrompt).optionColorTreatments).toEqual([
       "unavailable",
+      "filled",
+      "filled",
       "filled",
     ]);
     expect(
       mocks.put.mock.calls.filter(([key]) =>
         String(key).endsWith("-original.png"),
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(4);
     expect(
       mocks.put.mock.calls.filter(([key]) =>
         String(key).endsWith("-stencil.png"),
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(4);
     expect(
-      mocks.put.mock.calls.filter(([key]) =>
-        String(key).endsWith("-color.png"),
-      ),
-    ).toEqual([expect.arrayContaining([`stencils/${id}/1-color.png`])]);
+      mocks.put.mock.calls
+        .filter(([key]) => String(key).endsWith("-color.png"))
+        .map(([key]) => key)
+        .sort(),
+    ).toEqual([
+      `stencils/${id}/1-color.png`,
+      `stencils/${id}/2-color.png`,
+      `stencils/${id}/3-color.png`,
+    ]);
     expect(console.warn).toHaveBeenCalledWith("[color-version-unavailable]", {
       jobId: id,
       index: 0,
@@ -231,7 +239,7 @@ describe("optional filled color resilience", () => {
       );
       expect(response.status).toBe(200);
       const payload = await response.json();
-      expect(payload).toMatchObject({ source: "catalog", status: "ready" });
+      expect(payload).toMatchObject({ source: "ai", status: "ready" });
       expect(payload.options[0]).toMatchObject({
         originalUrl: `/api/stencils/${id}/options/0-original.png?token=${token}`,
         colorStatus: "failed",
@@ -267,10 +275,7 @@ describe("optional filled color resilience", () => {
   });
 
   it("accepts only a typed storage_upload_failed while uploading an optional filled color", async () => {
-    const prompt = createCatalogJobPrompt(
-      [getValidatedCatalogRecord("fine-line-tulip")!],
-      { category: "all", artStyle: "any", colorMix: "red_accent" },
-    );
+    const prompt = colorAiPrompt("red_accent");
     const { PlatformServiceError } = await vi.importActual<
       typeof import("../server/stencils/platform")
     >("../server/stencils/platform");
@@ -299,7 +304,7 @@ describe("optional filled color resilience", () => {
     expect(mocks.save).toHaveBeenCalledOnce();
     expect(
       JSON.parse(mocks.save.mock.calls[0][2]).optionColorTreatments,
-    ).toEqual(["unavailable"]);
+    ).toEqual(["unavailable", "unavailable", "unavailable", "unavailable"]);
     expect(
       mocks.put.mock.calls.some(([key]) =>
         String(key).endsWith("-original.png"),
@@ -312,25 +317,7 @@ describe("optional filled color resilience", () => {
     ).toBe(true);
   });
 
-  it("keeps V2 color failure and AI source-generation failure as real failed jobs", async () => {
-    const v2Prompt = JSON.stringify({
-      version: 2,
-      mode: "catalog",
-      catalogIds: ["fine-line-tulip"],
-      filters: { category: "all", artStyle: "any", colorMix: "red_accent" },
-      colorMode: "red_accent",
-    });
-    mocks.findJob.mockResolvedValue(queuedJob(v2Prompt));
-    mocks.color.mockRejectedValueOnce(new mocks.ColorVersionError());
-
-    await runStencilJob(id);
-
-    expect(mocks.save).not.toHaveBeenCalled();
-    expect(mocks.failed).toHaveBeenCalledWith(
-      id,
-      "The requested color version could not be prepared. Please create a new request to retry.",
-    );
-
+  it("keeps AI source-generation failure as a real failed job", async () => {
     vi.clearAllMocks();
     mocks.failed.mockResolvedValue(undefined);
     mocks.generate.mockRejectedValue(
@@ -358,17 +345,7 @@ describe("optional filled color resilience", () => {
     );
   });
 
-  it("validates unavailable outcomes at the same V3 and AI expected counts as other actual outcomes", () => {
-    const catalogPrompt = colorCatalogPrompt();
-    const catalog = persistActualColorTreatments(catalogPrompt, [
-      "unavailable",
-      "filled",
-    ]);
-    expect(parseActualColorTreatments(catalog)).toEqual([
-      "unavailable",
-      "filled",
-    ]);
-
+  it("validates unavailable outcomes at the same AI expected count as other actual outcomes", () => {
     const aiPrompt = createAiJobPrompt({
       version: 1,
       mode: "ai",

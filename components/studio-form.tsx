@@ -1,30 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { C, F, type MediumId, type StyleId } from "@/lib/studio-theme";
 import { PrimaryButton, StepLabel } from "./studio-ui";
-import { CatalogChoice } from "./catalog-choice";
+import { ChoicePicker } from "./choice-picker";
 import { TattooInkPicker } from "./tattoo-ink-picker";
 import { TATTOO_INKS, validateTattooInkIds } from "@/shared/tattoo-inks";
-import { CATALOG_DESIGNS } from "@/lib/catalog-inspiration";
-import type { InspirationPreset } from "@/lib/inspiration-utils";
 import { isDisallowedInstantDrawConcept } from "@/shared/instant-draw";
 import {
   CATALOG_STYLE_OPTIONS,
   CATALOG_COLOR_OPTIONS,
   DEFAULT_CATALOG_FILTERS,
   catalogFinderFilters,
-  catalogDesignSelectionFilters,
-  filterCatalogByChoices,
   type CatalogFilters,
 } from "@/shared/catalog-filters";
 
 export function StudioForm({
   onGenerate,
   busy,
-  inspiration,
-  onBrowseInspiration,
-  inspirationCount,
+  offline,
   externalError,
   initialQuery,
   filters,
@@ -34,13 +28,10 @@ export function StudioForm({
     concept: string,
     style: StyleId,
     medium: MediumId,
-    catalogId?: string,
     filters?: CatalogFilters,
   ) => void;
   busy: boolean;
-  inspiration?: InspirationPreset | null;
-  onBrowseInspiration?: () => void;
-  inspirationCount?: number;
+  offline?: boolean;
   externalError?: string;
   initialQuery?: string;
   filters: CatalogFilters;
@@ -50,53 +41,21 @@ export function StudioForm({
   const [touched, setTouched] = useState(false);
   const input = useRef<TextInput>(null);
   const disallowed = isDisallowedInstantDrawConcept(concept);
-  useEffect(() => {
-    if (!inspiration) return;
-    setConcept(inspiration.title);
-    setTouched(false);
-  }, [inspiration?.id, inspiration?.version]);
   const finderFilters = catalogFinderFilters(filters);
-  const choices = useMemo(
-    () => ({
-      styles: CATALOG_STYLE_OPTIONS.map((option) => ({
-        ...option,
-        count: filterCatalogByChoices(CATALOG_DESIGNS, {
-          ...catalogDesignSelectionFilters(catalogFinderFilters(filters)),
-          artStyle: option.id,
-        }).length,
-      })),
-      colors: CATALOG_COLOR_OPTIONS.map((option) => ({
-        ...option,
-        count: filterCatalogByChoices(CATALOG_DESIGNS, {
-          ...catalogDesignSelectionFilters(catalogFinderFilters(filters)),
-        }).length,
-      })),
-      count: filterCatalogByChoices(
-        CATALOG_DESIGNS,
-        catalogDesignSelectionFilters(catalogFinderFilters(filters)),
-      ).length,
-    }),
-    [filters.category, filters.artStyle, filters.colorMix],
-  );
+  const styleOptions = CATALOG_STYLE_OPTIONS;
   const submit = () => {
     setTouched(true);
     if (disallowed || busy) return;
     const query = concept.trim() || "Surprise me";
-    onGenerate(
-      query,
-      "fine_line",
-      "blackwork",
-      query === inspiration?.title ? inspiration.id : undefined,
-      finderFilters,
-    );
+    onGenerate(query, "fine_line", "blackwork", finderFilters);
   };
   return (
     <View style={s.form}>
       <StepLabel number="01" title="Find your tattoo" />
       <Text style={s.label}>Generate your tattoo live!</Text>
       <Text style={s.copy}>
-        Simple, family-friendly ideas from our artists’ catalog come first. If
-        there’s no suitable design in your chosen style, AI can explore it next.
+        Describe a simple, family-friendly idea and AI will create tattoo
+        designs in your chosen style.
       </Text>
       <View
         style={[s.inputBox, touched && disallowed && { borderColor: C.red }]}
@@ -143,12 +102,12 @@ export function StudioForm({
       </View>
       <View style={s.options}>
         <View style={s.choiceColumn}>
-          <CatalogChoice
+          <ChoicePicker
             label="Art style"
             value={filters.artStyle}
-            options={choices.styles}
+            options={styleOptions}
             fallbackLabel={
-              filters.artStyle === "any" ? "Catalog match" : "Saved style"
+              filters.artStyle === "any" ? "Any art style" : "Saved style"
             }
             onChange={(artStyle) =>
               onFiltersChange({
@@ -196,57 +155,33 @@ export function StudioForm({
           texture.
         </Text>
       )}
-      <View style={s.availability}>
-        <Text
-          accessibilityLiveRegion="polite"
-          style={[s.availabilityText, choices.count === 0 && { color: C.red }]}
-        >
-          {choices.count} catalog{" "}
-          {choices.count === 1 ? "design fits" : "designs fit"} these choices in
-          the family-friendly edit
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() =>
-            onFiltersChange({
-              ...DEFAULT_CATALOG_FILTERS,
-              category: filters.category,
-            })
-          }
-          style={{ paddingVertical: 6 }}
-        >
-          <Text style={s.reset}>Reset options</Text>
-        </Pressable>
-      </View>
-      {choices.count === 0 && (
-        <Text accessibilityLiveRegion="polite" style={s.smallCopy}>
-          No catalog designs in this art style yet. AI can create your idea
-          instead.
-        </Text>
-      )}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() =>
+          onFiltersChange({
+            ...DEFAULT_CATALOG_FILTERS,
+            category: filters.category,
+          })
+        }
+        style={{ paddingVertical: 6 }}
+      >
+        <Text style={s.reset}>Reset options</Text>
+      </Pressable>
       <PrimaryButton
-        text={busy ? "Preparing your tattoo…" : "Generate my tattoo"}
+        text={
+          busy
+            ? "Preparing your tattoo…"
+            : offline
+              ? "You’re offline — reconnect to continue"
+              : "Generate my tattoo"
+        }
         onPress={submit}
-        disabled={busy}
+        disabled={busy || offline}
         icon="arrow-right"
       />
       <Text style={s.underText}>
-        Catalog first. AI only when no suitable match is found. Your chosen
-        colors.
+        Created live by AI, in your chosen style and colors.
       </Text>
-      {!!onBrowseInspiration && (
-        <Pressable
-          accessibilityRole="button"
-          onPress={onBrowseInspiration}
-          style={s.browse}
-        >
-          <Feather name="grid" size={15} color={C.accentInk} />
-          <Text style={s.browseText}>
-            Explore {inspirationCount || "our"} catalog designs
-          </Text>
-          <Feather name="arrow-down" size={13} color={C.accentInk} />
-        </Pressable>
-      )}
       <View style={s.footer}>
         <Feather name="heart" size={13} color={C.accentInk} />
         <Text style={s.footerText}>
@@ -299,19 +234,6 @@ const s = StyleSheet.create({
   suggestionText: { fontFamily: F.body, color: C.muted, fontSize: 11 },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 13 },
   choiceColumn: { flex: 1, minWidth: 150 },
-  availability: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 7,
-  },
-  availabilityText: {
-    fontFamily: F.body,
-    color: C.muted,
-    fontSize: 10,
-    lineHeight: 18,
-  },
   reset: { color: C.accentInk, fontFamily: F.bold, fontSize: 10 },
   underText: {
     fontFamily: F.body,
@@ -320,15 +242,6 @@ const s = StyleSheet.create({
     textAlign: "center",
     lineHeight: 18,
   },
-  browse: {
-    minHeight: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  browseText: { fontFamily: F.bold, fontSize: 12, color: C.accentInk },
   footer: {
     borderTopWidth: 1,
     borderTopColor: C.line,

@@ -163,7 +163,7 @@ describe("gap-aware fill regions", () => {
 
   it("recovers substantial bounded Tiger torso fill space beyond the strict source mask", async () => {
     const tiger = await rawRgb(
-      path.resolve(process.cwd(), "assets/catalog/inspiration/tiger.png"),
+      path.resolve(process.cwd(), "tests/fixtures/tiger.png"),
     );
     const strict = findEnclosedWhiteRegions(
       tiger.pixels,
@@ -189,9 +189,9 @@ describe("gap-aware fill regions", () => {
     );
   });
 
-  it("does not add a canvas-sized unknown region to a catalog butterfly", async () => {
+  it("does not add a canvas-sized unknown region to a butterfly", async () => {
     const butterfly = await rawRgb(
-      path.resolve(process.cwd(), "assets/catalog/inspiration/butterfly-effect.png"),
+      path.resolve(process.cwd(), "tests/fixtures/butterfly-effect.png"),
     );
     const strict = findEnclosedWhiteRegions(
       butterfly.pixels,

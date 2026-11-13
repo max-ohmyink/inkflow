@@ -1,5 +1,3 @@
-import records from "../assets/catalog/inspiration/catalog-items.json";
-import indexed from "../assets/catalog/inspiration/catalog-traits.json";
 import {
   tattooInkPalette,
   validateTattooInkIds,
@@ -49,36 +47,17 @@ const VALID_CATALOG_ART_STYLES = new Set<CatalogArtStyle>([
 
 /**
  * Directions that remain valid in stored filters but are no longer part of the guest picker.
- * `any` is deliberately source-catalog first rather than a visual style.
+ * `any` means no specific art style was chosen.
  */
 const ARCHIVED_STYLE_LABELS: Partial<Record<CatalogArtStyle, string>> = {
-  any: "Catalog match",
+  any: "Any art style",
   illustrated: "Playful line art",
   lettering: "Lettering",
   cyber_ornamental: "Cyber & ornamental",
 };
 
-/**
- * Catalog trait labels are source-data labels, not a promise that every guest direction already
- * exists in the source catalog. Traditional shares the catalog's classic-flash old_school group;
- * Watercolor deliberately has no alias and can only match a genuine future watercolor trait.
- */
-const CATALOG_TRAIT_LABELS_BY_ART_STYLE: Partial<
-  Record<CatalogArtStyle, readonly string[]>
-> = {
-  traditional: ["old_school"],
-};
-
 export function catalogFinderFilters(filters: CatalogFilters): CatalogFilters {
   return { ...filters, category: "all" };
-}
-
-/** Output color is intent, not a catalog retrieval constraint. */
-export function catalogDesignSelectionFilters(
-  filters: CatalogFilters,
-): CatalogFilters {
-  const { inkColors: _inkColors, ...withoutInks } = filters;
-  return { ...withoutInks, colorMix: "any" };
 }
 
 /** The only guest-visible art-style directions. */
@@ -117,28 +96,10 @@ export const CATALOG_COLOR_OPTIONS = [
   },
 ] as const;
 
+/** There is no longer a catalog to browse, so the category is always "all". */
 export const CATALOG_CATEGORY_OPTIONS = [
   { id: "all", label: "Any collection" },
-  ...Array.from(
-    new Map(
-      records.map((item) => [
-        item.category,
-        { id: item.category, label: item.collection },
-      ]),
-    ).values(),
-  ),
-];
-
-type Trait = {
-  artStyles: string[];
-  colorMix: string;
-  colorFamilies: string[];
-  colorInkFraction: number;
-};
-const traits = indexed.entries as Record<string, Trait>;
-export function catalogTrait(id: string): Trait | undefined {
-  return traits[id];
-}
+] as const;
 
 export function parseCatalogFilters(value: unknown): CatalogFilters {
   if (value === undefined || value === null)
@@ -146,12 +107,11 @@ export function parseCatalogFilters(value: unknown): CatalogFilters {
   if (typeof value !== "object" || Array.isArray(value))
     throw new Error("invalid_catalog_filters");
   const input = value as Record<string, unknown>;
-  const category = input.category ?? "all";
+  // Stored filters from the retired catalog may carry another category; it is ignored.
+  const category = "all";
   const artStyle = input.artStyle ?? "any";
   const colorMix = input.colorMix ?? "any";
   if (
-    typeof category !== "string" ||
-    !CATALOG_CATEGORY_OPTIONS.some((option) => option.id === category) ||
     typeof artStyle !== "string" ||
     !VALID_CATALOG_ART_STYLES.has(artStyle as CatalogArtStyle) ||
     typeof colorMix !== "string" ||
@@ -180,37 +140,6 @@ export function parseCatalogFilters(value: unknown): CatalogFilters {
     artStyle: artStyle as CatalogArtStyle,
     colorMix: colorMix as Exclude<CatalogColorMix, "custom">,
   };
-}
-
-export function matchesCatalogFilters(
-  item: { id: string; category: string },
-  filters: CatalogFilters,
-): boolean {
-  if (filters.category !== "all" && item.category !== filters.category)
-    return false;
-  const trait = traits[item.id];
-  const acceptedTraitLabels =
-    CATALOG_TRAIT_LABELS_BY_ART_STYLE[filters.artStyle] ?? [
-      filters.artStyle,
-    ];
-  if (
-    filters.artStyle !== "any" &&
-    !acceptedTraitLabels.some((label) => trait?.artStyles.includes(label))
-  )
-    return false;
-  if (
-    filters.colorMix !== "any" &&
-    filters.colorMix !== "custom" &&
-    trait?.colorMix !== filters.colorMix
-  )
-    return false;
-  return true;
-}
-
-export function filterCatalogByChoices<
-  T extends { id: string; category: string },
->(items: readonly T[], filters: CatalogFilters): T[] {
-  return items.filter((item) => matchesCatalogFilters(item, filters));
 }
 
 function artStyleSummary(style: CatalogArtStyle): string | undefined {

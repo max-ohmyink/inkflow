@@ -29,20 +29,10 @@ vi.mock("../server/stencils/imageProcessor", () => ({
   traceStencilSvg: vi.fn(),
 }));
 
-vi.mock("../assets/catalog/inspiration/artwork", () => ({
-  CATALOG_ARTWORK: {},
-}));
-
 import {
   ALLOWED_FAMILY_ART_STYLE_IDS,
-  FAMILY_DESIGN_IDS,
   isAllowedFamilyArtStyle,
 } from "../shared/family-designs";
-import {
-  ALL_CATALOG_DESIGNS,
-  CATALOG_DESIGNS,
-} from "../lib/catalog-inspiration";
-import { INSPIRATION_CATEGORIES } from "../lib/inspiration-utils";
 import {
   aiFallbackMetadataInput,
   compileAiFallbackGenerationPrompt,
@@ -66,20 +56,7 @@ describe("family design policy", () => {
     mocks.count.mockResolvedValue(0);
   });
 
-  it("exposes the curated simple family pool, including the applicable rose, in intentional order", () => {
-    expect(CATALOG_DESIGNS.map((design) => design.id)).toEqual(
-      FAMILY_DESIGN_IDS,
-    );
-    expect(
-      CATALOG_DESIGNS.find((design) => design.id === "fine-line-rose-1")?.title,
-    ).toBe("Fine Line Rose 1");
-    expect(ALL_CATALOG_DESIGNS.length).toBeGreaterThan(CATALOG_DESIGNS.length);
-    expect(INSPIRATION_CATEGORIES.map((category) => category.id)).toEqual([
-      "above-the-sky-sun-moon-and-angel",
-      "sacred-pulse-hearts",
-      "happy-arcade-smileys-and-toys",
-      "petal-and-vine-fine-line-flowers-and-leafs",
-    ]);
+  it("allows only the family-friendly art styles", () => {
     expect([...ALLOWED_FAMILY_ART_STYLE_IDS].sort()).toEqual(
       [
         "any",

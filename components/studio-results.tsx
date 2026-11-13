@@ -1,4 +1,3 @@
-import { catalogDisplayTitle } from "@/shared/catalog-labels";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -25,6 +24,7 @@ import {
   colorAvailabilityWarning,
   missingColorSummary,
 } from "@/lib/guest-experience";
+import { ArtworkImage } from "./artwork-image";
 import { PrimaryButton, SmallButton } from "./studio-ui";
 
 export function GenerationProgress({
@@ -41,15 +41,12 @@ export function GenerationProgress({
   canStartNew?: boolean;
 }) {
   const failed = !!error || job?.status === "failed";
-  const isAi = job?.source === "ai";
   const progress = Math.max(3, Math.min(100, job?.progress || 5));
   const stage =
     progress < 30
       ? "Exploring your idea"
       : progress < 75
-        ? isAi
-          ? "Creating your AI designs"
-          : "Preparing catalog designs"
+        ? "Creating your AI designs"
         : "Getting your choices ready";
   return (
     <View style={s.progressPanel}>
@@ -61,11 +58,7 @@ export function GenerationProgress({
         )}
       </View>
       <Text style={s.eyebrow}>
-        {failed
-          ? "A LITTLE PAUSE"
-          : isAi
-            ? "A NEW AI INK MOMENT"
-            : "OUR CATALOG COMES FIRST"}
+        {failed ? "A LITTLE PAUSE" : "A NEW AI INK MOMENT"}
       </Text>
       <Text style={s.progressTitle}>
         {failed ? "LET’S TRY THAT AGAIN." : "A LITTLE MORE YOU. COMING UP."}
@@ -74,10 +67,8 @@ export function GenerationProgress({
         {failed
           ? error ||
             job?.error ||
-            "Your catalog search hit a little pause. Please try again."
-          : isAi
-            ? "No suitable catalog design matched your idea and art style. AI is creating simple tattoo choices, just for this next ink moment."
-            : "We check our artists’ catalog first, then prepare your chosen colors—including filled petals, leaves and enclosed shapes."}
+            "Your AI tattoo ideas hit a little pause. Please try again."
+          : "AI is creating simple tattoo choices for your idea, then preparing your chosen colors—including filled petals, leaves and enclosed shapes."}
       </Text>
       {!failed && (
         <>
@@ -85,11 +76,7 @@ export function GenerationProgress({
             <View style={[s.fill, { width: `${progress}%` }]} />
           </View>
           <View style={s.progressSteps}>
-            {[
-              "Catalog first",
-              isAi ? "AI creation" : "Catalog matches",
-              "Your tattoo choices",
-            ].map((label, i) => (
+            {["Your idea", "AI creation", "Your tattoo choices"].map((label, i) => (
               <View key={label} style={s.progressStep}>
                 <Feather
                   name={progress >= (i + 1) * 32 ? "check-circle" : "circle"}
@@ -118,7 +105,7 @@ export function GenerationProgress({
       )}
       {canStartNew ? (
         <SmallButton
-          text="Back to the catalog finder"
+          text="Back to the tattoo finder"
           onPress={onBack}
           icon="arrow-left"
         />
@@ -153,7 +140,7 @@ export function StencilResults({
   sizeMm: number;
 }) {
   const [artistTools, setArtistTools] = useState(false);
-  const [showCatalogOriginal, setShowCatalogOriginal] = useState(
+  const [showOriginalArtwork, setShowOriginalArtwork] = useState(
     job.filters?.artStyle === "watercolor",
   );
   const hasColorVersion = job.options.some((option) =>
@@ -172,7 +159,7 @@ export function StencilResults({
       await downloadStencil(
         absoluteAsset(url),
         stencilFileName(
-          option.title ? catalogDisplayTitle(option) : job.concept,
+          option.title ?? job.concept,
           option.index,
           kind,
         ),
@@ -192,23 +179,13 @@ export function StencilResults({
       <View style={s.resultHeader}>
         <View>
           <Text style={s.eyebrow}>
-            {artistTools
-              ? "ARTIST PREPARATION"
-              : job.source === "catalog"
-                ? "FROM OUR ARTISTS’ CATALOG."
-                : job.source === "ai"
-                  ? "AI-CREATED. CATALOG CHECKED FIRST."
-                  : "SAVED CUSTOM ARTWORK."}
+            {artistTools ? "ARTIST PREPARATION" : "AI-CREATED FOR YOU."}
           </Text>
           <Text style={s.resultTitle}>
             PICK YOUR <Text style={s.serif}>ink.</Text>
           </Text>
           <Text style={s.resultSub}>
-            {job.source === "catalog"
-              ? `${job.options.length} original catalog ${job.options.length === 1 ? "match" : "matches"} for “${job.concept}”`
-              : job.source === "ai"
-                ? `No suitable catalog match—${job.options.length} AI-created ${job.options.length === 1 ? "design" : "designs"} for “${job.concept}”.`
-                : "Legacy saved artwork—not a catalog design."}
+            {`${job.options.length} AI-created ${job.options.length === 1 ? "design" : "designs"} for “${job.concept}”.`}
           </Text>
         </View>
         <SmallButton text="Find another tattoo" onPress={onNew} icon="plus" />
@@ -244,28 +221,22 @@ export function StencilResults({
               ? showOriginal
                 ? "GUEST ARTWORK"
                 : "MIRRORED ARTIST PREPARATION"
-              : job.source === "catalog"
-                ? hasColorVersion && !showCatalogOriginal
-                  ? "YOUR COLOR VERSION"
-                  : "ORIGINAL CATALOG ARTWORK"
-                : job.source === "ai"
-                  ? hasColorVersion && !showCatalogOriginal
-                    ? "AI DESIGN · YOUR COLORS"
-                    : "AI-CREATED ARTWORK"
-                  : "LEGACY SAVED ARTWORK"}
+              : hasColorVersion && !showOriginalArtwork
+                ? "AI DESIGN · YOUR COLORS"
+                : "AI-CREATED ARTWORK"}
           </Text>
         </View>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {hasColorVersion && (
             <SmallButton
               text={
-                showCatalogOriginal
+                showOriginalArtwork
                   ? job.filters?.artStyle === "watercolor"
                     ? "View flat ink version"
                     : "View color version"
                   : compareOriginalLabel(job.source)
               }
-              onPress={() => setShowCatalogOriginal((value) => !value)}
+              onPress={() => setShowOriginalArtwork((value) => !value)}
               icon="repeat"
             />
           )}
@@ -295,28 +266,23 @@ export function StencilResults({
             style={[s.resultCard, { width: compact ? "100%" : "48.5%" }]}
           >
             <View style={s.resultArt}>
-              <Image
-                source={{
-                  uri: absoluteAsset(
-                    tattooPreviewUrl(
-                      option,
-                      artistTools,
-                      showOriginal,
-                      showCatalogOriginal,
-                    ),
+              <ArtworkImage
+                uri={absoluteAsset(
+                  tattooPreviewUrl(
+                    option,
+                    artistTools,
+                    showOriginal,
+                    showOriginalArtwork,
                   ),
-                }}
-                accessibilityLabel={`${artistTools && !showOriginal ? "Mirrored artist preparation" : artworkVersionLabel(option, showCatalogOriginal)} option ${i + 1}`}
+                )}
+                accessibilityLabel={`${artistTools && !showOriginal ? "Mirrored artist preparation" : artworkVersionLabel(option, showOriginalArtwork)} option ${i + 1}`}
                 style={s.resultImage}
-                resizeMode="contain"
               />
               <Text style={s.optionNumber}>0{i + 1}</Text>
             </View>
             <View style={s.resultMeta}>
               <Text style={s.variation}>
-                {option.title
-                  ? catalogDisplayTitle(option)
-                  : `SAVED ARTWORK 0${i + 1}`}
+                {option.title ?? `AI DESIGN 0${i + 1}`}
               </Text>
               {artistTools && (
                 <Text style={s.resolution}>
@@ -336,9 +302,7 @@ export function StencilResults({
             <Text style={s.cardNote}>
               {artistTools
                 ? `Mirrored stencil PNG · ${sizeMm} mm print width`
-                : option.collection
-                  ? `${artworkVersionLabel(option, showCatalogOriginal)} · ${option.collection} · Catalog p.${option.page}${option.titleIsGenerated ? " · Display label" : ""}`
-                  : sourceArtworkLabel(option.source ?? job.source)}
+                : sourceArtworkLabel(option.source ?? job.source)}
             </Text>
             {!!colorAvailabilityWarning(option) && (
               <Text accessibilityRole="alert" style={s.colorWarning}>
@@ -415,7 +379,13 @@ export function PrintConfirmation({
         )}
       </View>
       <Text style={s.eyebrow}>ARTIST PREPARATION</Text>
-      <Text style={s.progressTitle}>SENDING TO PRINTER...</Text>
+      <Text style={s.progressTitle}>
+        {pending
+          ? "PREPARING YOUR STENCIL..."
+          : result === "submitted"
+            ? "SENT TO THE PRINT SYSTEM"
+            : "PRINT DIALOG OPENED"}
+      </Text>
       <Text style={[s.serif, { fontSize: 36, marginTop: 5 }]}>
         Please see your artist!
       </Text>

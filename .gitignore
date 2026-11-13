@@ -3,7 +3,6 @@
 # dependencies
 node_modules/
 .pnpm-store/
-*.manus-starter-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]
 
 # Expo
 .expo/
@@ -71,3 +70,6 @@ Thumbs.db
 # Python extraction cache
 __pycache__/
 *.py[cod]
+
+# Locally stored generated artwork
+uploads/

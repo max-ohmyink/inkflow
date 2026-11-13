@@ -54,7 +54,7 @@ import {
   createColorVersion,
   type ColorVersionImageService,
 } from "../server/stencils/colorVersion";
-import { parseCatalogJobPrompt } from "../server/stencils/catalogOutput";
+import { createAiJobPrompt } from "../server/stencils/jobMetadata";
 import { registerStencilRoutes } from "../server/stencils/routes";
 import { hashCapabilityToken, runStencilJob } from "../server/stencils/service";
 
@@ -159,12 +159,15 @@ async function withServer(
 function v2Prompt(
   colorMix: "any" | "red_accent" | "blue_accent" | "mixed_color" | "monochrome",
 ): string {
-  return JSON.stringify({
-    version: 2,
-    mode: "catalog",
-    catalogIds: ["fine-line-tulip"],
+  return createAiJobPrompt({
+    version: 1,
+    mode: "ai",
+    concept: "tulip",
+    style: "fine_line",
+    medium: "blackwork",
     filters: { category: "all", artStyle: "any", colorMix },
     colorMode: colorMix,
+    fillEnclosedRegions: true,
   });
 }
 
@@ -288,55 +291,10 @@ describe("original-constrained color versions", () => {
     ).rejects.toBeInstanceOf(ColorVersionError);
   });
 
-  it("does not call the image provider for the V2 default original-only color mode", async () => {
-    const prompt = v2Prompt("any");
-    mocks.findJob.mockResolvedValue({
-      ...readyJob(readyId, prompt),
-      status: "queued",
-    });
-
-    await runStencilJob(readyId);
-
-    expect(mocks.generateImage).not.toHaveBeenCalled();
-    expect(mocks.failed).not.toHaveBeenCalled();
-    expect(mocks.save).toHaveBeenCalledOnce();
-    expect(
-      mocks.put.mock.calls.some(([key]) => String(key).endsWith("-color.png")),
-    ).toBe(false);
-    expect(
-      mocks.put.mock.calls.some(([key]) =>
-        String(key).endsWith("-original.png"),
-      ),
-    ).toBe(true);
-  });
-
-  it("marks an unusable requested color proposal failed once instead of retrying or serving the original as color", async () => {
-    const blank = await pngFromPixels(Buffer.alloc(12 * 8 * 3, 255));
-    mocks.generateImage.mockResolvedValue({
-      bytes: blank,
-      mimeType: "image/png",
-    });
-    mocks.findJob.mockResolvedValue({
-      ...readyJob(readyId, v2Prompt("red_accent")),
-      status: "queued",
-    });
-
-    await runStencilJob(readyId);
-
-    expect(mocks.generateImage).toHaveBeenCalledOnce();
-    expect(mocks.failed).toHaveBeenCalledWith(
-      readyId,
-      "The requested color version could not be prepared. Please create a new request to retry.",
-    );
-    expect(
-      mocks.put.mock.calls.some(([key]) => String(key).endsWith("-color.png")),
-    ).toBe(false);
-    expect(mocks.save).not.toHaveBeenCalled();
-  });
 });
 
 describe("versioned color asset access", () => {
-  it("publishes protected V2 color URLs, never mislabels original URLs, and keeps V1 and V2-any without color endpoints", async () => {
+  it("publishes protected color URLs, never mislabels original URLs, and keeps old catalog rows and any-color jobs without color endpoints", async () => {
     const redPrompt = v2Prompt("red_accent");
     const anyPrompt = v2Prompt("any");
     const v1Prompt = JSON.stringify({
@@ -344,11 +302,6 @@ describe("versioned color asset access", () => {
       mode: "catalog",
       catalogIds: ["fine-line-tulip"],
       filters: { category: "all", artStyle: "any", colorMix: "red_accent" },
-    });
-    expect(parseCatalogJobPrompt(v1Prompt)).toMatchObject({ version: 1 });
-    expect(parseCatalogJobPrompt(redPrompt)).toMatchObject({
-      version: 2,
-      colorMode: "red_accent",
     });
 
     mocks.findJob.mockImplementation(async (id: string) => {

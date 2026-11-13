@@ -128,24 +128,3 @@ export function parseAiJobPrompt(prompt: string): AiJobPromptV1 | undefined {
     fillEnclosedRegions: true,
   };
 }
-
-/**
- * Detects a source-decision envelope even when it is malformed or an unsupported future version.
- * The worker uses this to fail closed rather than treating tampered metadata as legacy work.
- */
-export function isVersionedStencilMetadata(prompt: string): boolean {
-  const raw = parseObject(prompt);
-  return Boolean(
-    raw &&
-    (raw.mode === "catalog" ||
-      raw.mode === "ai" ||
-      Object.prototype.hasOwnProperty.call(raw, "version")),
-  );
-}
-
-export function declaredMetadataMode(
-  prompt: string,
-): "catalog" | "ai" | undefined {
-  const raw = parseObject(prompt);
-  return raw?.mode === "catalog" || raw?.mode === "ai" ? raw.mode : undefined;
-}

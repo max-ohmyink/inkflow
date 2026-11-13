@@ -2,15 +2,15 @@
 
 ## 已交付的應用程式
 
-專案使用 webdev 管理的 Expo Router、React Native、TypeScript 行動應用程式；同一套介面亦能在 iPad Safari 作為 Web App 使用。開發環境的 Metro／Web 固定使用 8081，Express API 使用 3000。iPad 支援橫向，手機支援直向；原生安裝檔需透過 Manus Dashboard 的行動建置功能製作，預覽成功不代表已有 APK 或 TestFlight 成品。
+專案使用 Expo Router、React Native、TypeScript 行動應用程式；同一套介面亦能在 iPad Safari 作為 Web App 使用。開發環境的 Metro／Web 固定使用 8081，Express API 使用 3000。iPad 支援橫向，手機支援直向；原生安裝檔需另行建置（例如 EAS Build），預覽成功不代表已有 APK 或 TestFlight 成品。
 
 視覺沿用 Oh My Ink 官網的黑色、黃色 #F6CC11、Oswald 凝縮標題及 Cormorant Garamond 斜體。最新版本以紋身師即場手繪為主，風格顯示為 Fine Line、Bold Outline、Simple Shapes、Flowing Lines；使用目錄中的 Fine Line Tulip、Heart with Arrow、Heart-shaped Clip、Ribbon 作為簡單線條參考。已移除曼陀羅及繁複裝飾；靈感目錄精選 12 個簡單圖案。生成指示要求少量清晰輪廓線，但實際線條仍由紋身師確認，不保證固定繪製時間。完整保密 PDF 不在程式碼包內。Web 操作以 `docs/WEB-APP-GUIDE.md` 為準。
 
-## 在 Manus 使用
+## 本機開發
 
-在專案的 **Preview** 查看 Web 介面。原生測試請使用 Dashboard 的 **Connect Expo**，依其表單登入 Expo 帳號，並在同一帳號的 Expo Go 開啟預覽。Expo 認證資料只填 Dashboard 表單，不要放入聊天或原始碼。此版本使用 Expo Print 及 FileSystem；真正的 AirPrint 操作需要在實體 iPad 上確認。
+以 `pnpm dev` 啟動後，在瀏覽器開啟 Web 介面。此版本使用 Expo Print 及 FileSystem；真正的 AirPrint 操作需要在實體 iPad 上確認。
 
-資料庫及內建圖片服務的伺服器環境變數由 Manus 管理：`DATABASE_URL`、`MANUS_API_URL`、`MANUS_API_KEY`。不需要在前端放圖片 API key。原生版本使用公開的 `EXPO_PUBLIC_API_BASE_URL` 連到 HTTPS 後端；正式建置前務必設為已部署且能由裝置存取的 API 位址，不要把開發預覽地址當作永久後端。
+伺服器環境變數見 `.env.example`：`DATABASE_URL` 及圖片服務設定（`AI_API_KEY`、`AI_BASE_URL`、`AI_IMAGE_MODEL` 等）。不需要在前端放圖片 API key。原生版本使用公開的 `EXPO_PUBLIC_API_BASE_URL` 連到 HTTPS 後端；正式建置前務必設為已部署且能由裝置存取的 API 位址，不要把開發預覽地址當作永久後端。
 
 在專案目錄執行：
 
@@ -22,13 +22,13 @@ pnpm db:push
 pnpm dev
 ```
 
-`db:push` 會依 Drizzle migration 建立／同步 `users`、`stencil_jobs`、`stencil_options`。開發與正式環境共用 Manus 資料庫；不要把這個命令視為可以隨意清空正式資料。此任務已執行初始 migration。只有 schema 有新增或有未套用 migration 時才需要再次執行。
+`db:push` 會依 Drizzle migration 建立／同步 `users`、`stencil_jobs`、`stencil_options`。不要把這個命令視為可以隨意清空正式資料。此任務已執行初始 migration。只有 schema 有新增或有未套用 migration 時才需要再次執行。
 
-原生正式版本在來源已保存到 Version history 後，由 Dashboard 建置 Android APK/AAB 或 iOS/TestFlight。實際 iOS 發行仍需要相應的 Apple／Expo 簽署及發行設定；此交付包含原始碼與設定，沒有宣稱已產生或上架安裝檔。
+原生正式版本可自行建置 Android APK/AAB 或 iOS/TestFlight。實際 iOS 發行仍需要相應的 Apple／Expo 簽署及發行設定；此交付包含原始碼與設定，沒有宣稱已產生或上架安裝檔。
 
 ## 正式 Web／API 部署
 
-專案提供 `Dockerfile`：建置 Expo Web 靜態頁與後端，再由同一個 3000 連接埠提供介面及 `/api/*`。健康檢查是 `GET /api/health`。Manus 的 deployment declaration 已設定此 Dockerfile 與 health path；保存 checkpoint 與正式發佈是兩個步驟。要讓活動 iPad 使用穩定地址，請從 Dashboard 發佈已保存版本，再開啟成功發佈後的正式 HTTPS 地址。
+專案提供 `Dockerfile`：建置 Expo Web 靜態頁與後端，再由同一個 3000 連接埠提供介面及 `/api/*`。健康檢查是 `GET /api/health`。要讓活動 iPad 使用穩定地址，請部署此映像並開啟正式 HTTPS 地址。
 
 獨立主機可使用以下流程：
 
@@ -42,9 +42,8 @@ docker build -t ohmyink-stencil .
 docker run --env-file .env -p 3000:3000 ohmyink-stencil
 ```
 
-`.env.example` 列出所需變數但不含任何秘密。独立部署仍需能存取 Manus 圖片／儲存 API 的合法服務憑證及 MySQL 資料庫；程式碼包本身不授予服務使用權限。請在反向代理配置 HTTPS，並讓原生建置的公開 API 地址指向該 HTTPS 網址。Web 容器預設使用同源 `/api`，不需要額外的公開 API 地址。
+`.env.example` 列出所需變數。部署需要圖片服務 API key 及 MySQL 資料庫。請在反向代理配置 HTTPS，並讓原生建置的公開 API 地址指向該 HTTPS 網址。Web 容器預設使用同源 `/api`，不需要額外的公開 API 地址。
 
-四個品牌參考圖片的 private storage keys 在 `server/stencils/catalog-references.json`，目前綁定本 Manus 專案。若搬到另一個專案，須重新上傳 `assets/catalog/*.png` 到該專案的私有儲存，再更新這四個 key；不能假設其他專案能讀到此專案資產。其餘客人作品使用新的隨機任務路徑儲存，資料庫只保存穩定 key。
 
 ## iPad 現場流程
 

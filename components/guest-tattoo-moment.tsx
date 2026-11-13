@@ -1,6 +1,6 @@
-import { catalogDisplayTitle } from "@/shared/catalog-labels";
 import { useState } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { ArtworkImage } from "./artwork-image";
 import { Feather } from "@expo/vector-icons";
 import { C, F } from "@/lib/studio-theme";
 import {
@@ -28,16 +28,13 @@ export function GuestTattooMoment({
   option,
   onBack,
   onNew,
-  onArtistPrint,
 }: {
   job: StencilJob;
   option: StencilOption;
   onBack: () => void;
   onNew: () => void;
-  onArtistPrint: () => void;
 }) {
-  const [artistTools, setArtistTools] = useState(false);
-  const [showCatalogOriginal, setShowCatalogOriginal] = useState(
+  const [showOriginalArtwork, setShowOriginalArtwork] = useState(
     job.filters?.artStyle === "watercolor",
   );
   const [saving, setSaving] = useState(false);
@@ -48,12 +45,12 @@ export function GuestTattooMoment({
     setError("");
     try {
       await downloadStencil(
-        absoluteAsset(guestArtworkUrl(option, showCatalogOriginal)),
+        absoluteAsset(guestArtworkUrl(option, showOriginalArtwork)),
         guestArtworkFileName(
-          option.title ? catalogDisplayTitle(option) : job.concept,
+          option.title ?? job.concept,
           option.index,
           option.colorUrl
-            ? showCatalogOriginal
+            ? showOriginalArtwork
               ? "original"
               : "color"
             : undefined,
@@ -84,17 +81,14 @@ export function GuestTattooMoment({
         it to our team and let your next ink moment begin.
       </Text>
       <View style={s.artFrame}>
-        <Image
-          source={{
-            uri: absoluteAsset(guestArtworkUrl(option, showCatalogOriginal)),
-          }}
-          resizeMode="contain"
+        <ArtworkImage
+          uri={absoluteAsset(guestArtworkUrl(option, showOriginalArtwork))}
           style={s.art}
-          accessibilityLabel={`${artworkVersionLabel(option, showCatalogOriginal)}: ${option.title ? catalogDisplayTitle(option) : job.concept}`}
+          accessibilityLabel={`${artworkVersionLabel(option, showOriginalArtwork)}: ${option.title ?? job.concept}`}
         />
       </View>
       <Text style={s.concept}>
-        {option.title ? catalogDisplayTitle(option) : job.concept}
+        {option.title ?? job.concept}
       </Text>
       <Text style={[s.copy, { textAlign: "center" }]}>
         {sourceArtworkLabel(option.source ?? job.source)}
@@ -122,29 +116,23 @@ export function GuestTattooMoment({
       {!!option.colorUrl && (
         <View style={{ alignItems: "center", gap: 12 }}>
           <Text style={s.copy}>
-            {artworkVersionLabel(option, showCatalogOriginal)} ·{" "}
-            {showCatalogOriginal
+            {artworkVersionLabel(option, showOriginalArtwork)} ·{" "}
+            {showOriginalArtwork
               ? "Untouched source artwork, kept separately from your color version."
               : colorTreatmentDescription(option)}
           </Text>
           <SmallButton
             text={
-              showCatalogOriginal
+              showOriginalArtwork
                 ? job.filters?.artStyle === "watercolor"
                   ? "View flat ink version"
                   : "View my color version"
                 : compareOriginalLabel(option.source ?? job.source)
             }
-            onPress={() => setShowCatalogOriginal((value) => !value)}
+            onPress={() => setShowOriginalArtwork((value) => !value)}
             icon="repeat"
           />
         </View>
-      )}
-      {option.collection && (
-        <Text style={s.copy}>
-          {option.collection} · Catalog page {option.page}
-          {option.titleIsGenerated ? " · Display label" : ""}
-        </Text>
       )}
       <View style={s.next}>
         <Feather name="users" size={20} color={C.blue} />
@@ -162,10 +150,8 @@ export function GuestTattooMoment({
             saving
               ? "Saving your artwork…"
               : option.colorUrl
-                ? showCatalogOriginal
-                  ? option.source === "ai" || job.source === "ai"
-                    ? "Save AI original"
-                    : `Save ${originalArtworkLabel(option.source ?? job.source).toLowerCase()}`
+                ? showOriginalArtwork
+                  ? "Save AI original"
                   : "Save my color version"
                 : "Save my tattoo design"
           }
@@ -186,27 +172,6 @@ export function GuestTattooMoment({
           icon="arrow-left"
         />
         <SmallButton text="Find another tattoo" onPress={onNew} icon="plus" />
-      </View>
-      <View style={s.artistSection}>
-        <SmallButton
-          text={artistTools ? "Close artist tools" : "Artist tools"}
-          onPress={() => setArtistTools((value) => !value)}
-          icon="sliders"
-        />
-        {artistTools && (
-          <View style={{ gap: 12, marginTop: 15 }}>
-            <Text style={s.nextCopy}>
-              Artist preparation only: print the original-resolution mirrored
-              black-and-white stencil derived from the source original artwork.
-              Filled color versions are separate, normal-orientation artwork.
-            </Text>
-            <SmallButton
-              text="Select & Print"
-              onPress={onArtistPrint}
-              icon="printer"
-            />
-          </View>
-        )}
       </View>
     </View>
   );
@@ -272,12 +237,6 @@ const s = StyleSheet.create({
     flexWrap: "wrap",
     gap: 16,
     justifyContent: "center",
-  },
-  artistSection: {
-    borderTopWidth: 1,
-    borderTopColor: C.line,
-    paddingTop: 20,
-    marginTop: 9,
   },
   error: { color: C.red, fontFamily: F.body, fontSize: 12 },
 });
