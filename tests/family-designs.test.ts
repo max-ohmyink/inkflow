@@ -56,22 +56,27 @@ describe("family design policy", () => {
     mocks.count.mockResolvedValue(0);
   });
 
-  it("allows only the family-friendly art styles", () => {
+  it("allows the restored art styles for new work", () => {
     expect([...ALLOWED_FAMILY_ART_STYLE_IDS].sort()).toEqual(
       [
         "any",
+        "blackwork",
+        "tribal",
         "fine_line",
         "illustrated",
+        "japanese",
+        "neo_traditional",
         "old_school",
         "traditional",
         "watercolor",
       ].sort(),
     );
     expect(isAllowedFamilyArtStyle("old_school")).toBe(true);
+    expect(isAllowedFamilyArtStyle("lettering")).toBe(false);
     expect(isAllowedFamilyArtStyle("cyber_ornamental")).toBe(false);
   });
 
-  it("creates a canonically simple, friendly fallback brief even from a legacy style", () => {
+  it("creates a refined fine-line brief from a legacy style, with only the explicit-content rule", () => {
     const prompt = compileAiFallbackGenerationPrompt({
       concept: "happy cloud",
       style: "cyber",
@@ -83,13 +88,16 @@ describe("family design policy", () => {
     });
 
     expect(metadata.style).toBe("fine_line");
-    expect(prompt).toContain("one friendly, child-appropriate motif");
-    expect(prompt).toContain("6–12 clean strokes");
-    expect(prompt).toContain("--no scary masks");
-    expect(prompt).toContain("--no gore");
-    expect(prompt).toContain("--no weapons");
+    expect(prompt).toContain("elegant continuous-line fine-line tattoo");
+    expect(prompt).toContain(
+      "premium tattoo flash design by a master tattoo artist",
+    );
+    expect(prompt).not.toContain("6–12 clean strokes");
+    expect(prompt).not.toMatch(
+      /child|family|--no scary masks|--no weapons|--no mandalas/i,
+    );
     expect(prompt).toContain("--no sexual or explicit content");
-    expect(prompt).toContain("--no mandalas");
+    expect(prompt).toContain("--no nudity");
     expect(prompt).not.toContain("simple flowing monoline outline");
   });
 
@@ -128,11 +136,22 @@ describe("family design policy", () => {
     expect(mocks.insert).not.toHaveBeenCalled();
   });
 
-  it("rejects a new scary or explicit free-text theme before queueing work", async () => {
+  it("accepts classic dark tattoo themes but rejects explicit ones before queueing work", async () => {
     await expect(
       createStencilJob({ ...input, concept: "small skull with a sword" }),
-    ).rejects.toMatchObject({ message: "family_design_only" });
+    ).resolves.toMatchObject({ token });
+    expect(mocks.insert).toHaveBeenCalledOnce();
 
+    vi.clearAllMocks();
+    mocks.findRequest.mockResolvedValue(undefined);
+    mocks.count.mockResolvedValue(0);
+    await expect(
+      createStencilJob({
+        ...input,
+        requestId: "explicit-theme",
+        concept: "nude figure",
+      }),
+    ).rejects.toMatchObject({ message: "family_design_only" });
     expect(mocks.count).not.toHaveBeenCalled();
     expect(mocks.insert).not.toHaveBeenCalled();
   });

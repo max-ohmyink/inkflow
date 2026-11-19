@@ -1,6 +1,6 @@
 import { ImageSourcePropType } from "react-native";
 
-// Bloomberg Day 2026 toolkit, page 5. Oh My Ink’s logo artwork stays unchanged.
+// Bloomberg Day 2026 toolkit, page 5.
 export const C = {
   bg: "#FFECDE",
   cream: "#FFECDE",
@@ -17,6 +17,12 @@ export const C = {
   cyan: "#14A7E0",
   pink: "#EFA5C9",
   white: "#FFFFFF",
+};
+/** Rounded, child-friendly corners used across the studio. */
+export const R = {
+  card: 20,
+  control: 16,
+  pill: 999,
 };
 export const F = {
   heading: "AvenirNextDemi",

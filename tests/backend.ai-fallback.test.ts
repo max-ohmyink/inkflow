@@ -4,6 +4,9 @@ import express from "express";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// These suites cover the optional color-version feature, which is off by default.
+process.env.AI_COLOR_VERSIONS = "on";
+
 const mocks = vi.hoisted(() => ({
   findRequest: vi.fn(),
   findJob: vi.fn(),
@@ -210,20 +213,24 @@ describe("AI-only source decisions", () => {
     expect(parsed).not.toHaveProperty("catalogId");
 
     await createStencilJob(parsed);
-    expect(
-      JSON.parse(mocks.insert.mock.calls[0][0].prompt),
-    ).toMatchObject({ mode: "ai" });
+    expect(JSON.parse(mocks.insert.mock.calls[0][0].prompt)).toMatchObject({
+      mode: "ai",
+    });
   });
 
-  it("keeps frontend Surprise me allowed and blocks blank/mandala input before provider work", async () => {
+  it("keeps Surprise me and mandalas allowed and blocks blank/explicit input before provider work", async () => {
     expect(
       parseStencilInput({ ...baseInput, concept: "Surprise me" }).concept,
     ).toBe("Surprise me");
+    expect(
+      parseStencilInput({ ...baseInput, concept: "small mandala flower" })
+        .concept,
+    ).toBe("small mandala flower");
     expect(() => parseStencilInput({ ...baseInput, concept: "" })).toThrow(
       "invalid_request",
     );
     expect(() =>
-      parseStencilInput({ ...baseInput, concept: "small mandala flower" }),
+      parseStencilInput({ ...baseInput, concept: "nude pin-up" }),
     ).toThrow("instant_draw_only");
     expect(mocks.generate).not.toHaveBeenCalled();
   });
@@ -267,12 +274,14 @@ describe("persisted AI fallback", () => {
 
     expect(mocks.generate).toHaveBeenCalledOnce();
     expect(mocks.generate.mock.calls[0][0]).toContain(
-      "Create 4 distinct instant-draw outline variations of nebula.",
+      "Create 4 distinct tattoo design variations of nebula.",
     );
     expect(mocks.generate.mock.calls[0][0]).toContain(
-      "simple monoline outline",
+      "continuous-line fine-line tattoo",
     );
-    expect(mocks.generate.mock.calls[0][0]).toContain("--no mandalas");
+    expect(mocks.generate.mock.calls[0][0]).toContain(
+      "--no sexual or explicit content",
+    );
     expect(mocks.split).toHaveBeenCalledWith(Buffer.from("contact-sheet"));
     expect(mocks.failed).not.toHaveBeenCalled();
     expect(
@@ -465,6 +474,37 @@ describe("public source and color compatibility", () => {
       ).toBe(true);
     });
   });
+  it("serves only the AI original, with no color calls or color URLs, when color versions are off", async () => {
+    process.env.AI_COLOR_VERSIONS = "off";
+    try {
+      mocks.findJob.mockResolvedValue(job(aiPrompt("red_accent")));
+      await runStencilJob(id);
+      expect(mocks.failed).not.toHaveBeenCalled();
+      // Only the single 2x2 contact-sheet generation; no per-option color edits.
+      expect(mocks.generate).toHaveBeenCalledOnce();
+      expect(
+        mocks.put.mock.calls.filter(([key]) => String(key).includes("color")),
+      ).toHaveLength(0);
+
+      mocks.findJob.mockResolvedValue(job(aiPrompt("red_accent"), "ready"));
+      await withServer(async (origin) => {
+        const response = await fetch(
+          `${origin}/api/stencils/${id}?token=${token}`,
+        );
+        const payload = await response.json();
+        expect(payload.options[0]).toHaveProperty("originalUrl");
+        expect(payload.options[0]).not.toHaveProperty("colorUrl");
+        const colorAsset = await fetch(
+          `${origin}/api/stencils/${id}/options/0-color.png?token=${token}`,
+          { redirect: "manual" },
+        );
+        expect(colorAsset.status).toBe(404);
+      });
+    } finally {
+      process.env.AI_COLOR_VERSIONS = "on";
+    }
+  });
+
   it("does not guess a filled label for a ready color asset without actual outcome metadata", async () => {
     mocks.findJob.mockResolvedValue(job(aiPrompt("red_accent"), "ready"));
     await withServer(async (origin) => {
@@ -476,5 +516,4 @@ describe("public source and color compatibility", () => {
       expect(payload.options[0]).not.toHaveProperty("colorTreatment");
     });
   });
-
 });

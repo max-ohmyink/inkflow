@@ -4,12 +4,21 @@ import {
   type TattooInkId,
 } from "./tattoo-inks";
 
+/**
+ * Offered styles are listed in CATALOG_STYLE_OPTIONS. `illustrated`, `lettering` and
+ * `cyber_ornamental` are legacy and parse-only, kept so previously saved jobs and library entries
+ * still load; they cannot be chosen any more.
+ */
 export type CatalogArtStyle =
   | "any"
   | "fine_line"
   | "old_school"
   | "traditional"
   | "watercolor"
+  | "blackwork"
+  | "tribal"
+  | "japanese"
+  | "neo_traditional"
   | "illustrated"
   | "lettering"
   | "cyber_ornamental";
@@ -40,6 +49,11 @@ const VALID_CATALOG_ART_STYLES = new Set<CatalogArtStyle>([
   "old_school",
   "traditional",
   "watercolor",
+  "blackwork",
+  "tribal",
+  "japanese",
+  "neo_traditional",
+  // Legacy, parse-only:
   "illustrated",
   "lettering",
   "cyber_ornamental",
@@ -60,7 +74,7 @@ export function catalogFinderFilters(filters: CatalogFilters): CatalogFilters {
   return { ...filters, category: "all" };
 }
 
-/** The only guest-visible art-style directions. */
+/** The guest-visible art-style directions; Fine Line is the default look. */
 export const CATALOG_STYLE_OPTIONS: readonly {
   id: CatalogArtStyle;
   label: string;
@@ -69,6 +83,10 @@ export const CATALOG_STYLE_OPTIONS: readonly {
   { id: "old_school", label: "Old School" },
   { id: "traditional", label: "Traditional" },
   { id: "watercolor", label: "Watercolor" },
+  { id: "blackwork", label: "Blackwork" },
+  { id: "japanese", label: "Japanese" },
+  { id: "neo_traditional", label: "Neo-Traditional" },
+  { id: "tribal", label: "Tribal" },
 ] as const;
 
 export const CATALOG_COLOR_OPTIONS = [

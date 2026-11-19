@@ -1,9 +1,8 @@
-export const INSTANT_DRAW_MESSAGE =
-  "Let's keep it simple for instant drawing—try a heart, flower, smiley or small symbol.";
+import { EXPLICIT_THEME } from "./family-designs";
 
-const DISALLOWED_INSTANT_DRAW_CONCEPT =
-  /\bmandalas?\b|曼陀羅|曼陀罗|曼荼羅|曼荼罗/i;
+export const INSTANT_DRAW_MESSAGE = "Please try a different idea.";
 
+/** Only sexual or explicit themes are refused; every classic tattoo subject is allowed. */
 export function isDisallowedInstantDrawConcept(concept: string): boolean {
-  return DISALLOWED_INSTANT_DRAW_CONCEPT.test(concept);
+  return EXPLICIT_THEME.test(concept);
 }

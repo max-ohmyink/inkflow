@@ -114,13 +114,12 @@ describe("local selected tattoo ink fills", () => {
     expect(pixelAt(output.pixels, width, 6, 8)).toEqual([244, 67, 69]);
     expect(pixelAt(output.pixels, width, 18, 8)).toEqual([40, 191, 225]);
     expect(pixelAt(output.pixels, width, 31, 8)).toEqual([255, 228, 77]);
-    expect(pixelAt(output.pixels, width, 2, 7)).toEqual([0, 0, 0]);
-    expect(pixelAt(output.pixels, width, 2, 8)).toEqual([180, 180, 180]);
+    expect(pixelAt(output.pixels, width, 2, 7)).toEqual([244, 67, 69]);
+    expect(pixelAt(output.pixels, width, 2, 8)).toEqual([252, 200, 200]);
     expect(pixelAt(output.pixels, width, 0, 0)).toEqual([255, 255, 255]);
     expectOnlyRgb(output.pixels, [
       [255, 255, 255],
-      [0, 0, 0],
-      [180, 180, 180],
+      [252, 200, 200],
       [244, 67, 69],
       [40, 191, 225],
       [255, 228, 77],

@@ -134,6 +134,14 @@ export function safeColorFailureDetails(error: unknown): {
   };
 }
 
+/**
+ * Color versions are off by default: guests get only the AI original, with no extra provider
+ * calls or local recoloring. Set AI_COLOR_VERSIONS=on to restore derived color versions.
+ */
+export function colorVersionsEnabled(): boolean {
+  return process.env.AI_COLOR_VERSIONS?.trim().toLowerCase() === "on";
+}
+
 export function isColorVersionMode(value: unknown): value is ColorVersionMode {
   return (
     value === "monochrome" ||
@@ -656,17 +664,27 @@ function composeFilledRegions(
   regions: EnclosedWhiteRegions,
   componentColors: Uint8Array,
   palette: readonly PaletteColor[],
+  lineColor?: readonly [number, number, number],
 ): Buffer {
   const output = Buffer.allocUnsafe(source.pixels.length);
   for (let pixel = 0; pixel < source.width * source.height; pixel += 1) {
     const offset = pixel * 3;
     if (isLineSupportPixel(source.pixels, pixel)) {
-      // The original contour remains black/grey, never proposal-colored, in a successful fill.
+      // The original contour is never proposal-colored. It stays black/grey unless the caller
+      // supplies a line color (custom inks tint the contour with the customer's own darkest ink).
       const coverage = originalInkCoverage(
         source.pixels[offset],
         source.pixels[offset + 1],
         source.pixels[offset + 2],
       );
+      if (lineColor) {
+        for (let channel = 0; channel < 3; channel += 1) {
+          output[offset + channel] = Math.round(
+            255 * (1 - coverage) + lineColor[channel] * coverage,
+          );
+        }
+        continue;
+      }
       const black = Math.round(255 * (1 - coverage));
       output[offset] = black;
       output[offset + 1] = black;
@@ -786,6 +804,17 @@ function composeSelectedInkOnlyColor(
   return { output, inkPixelCount };
 }
 
+/** Contour color for custom inks: the darkest chosen ink, so no unchosen black appears. */
+function darkestInk(
+  palette: readonly PaletteColor[],
+): readonly [number, number, number] {
+  const luminance = ([r, g, b]: readonly [number, number, number]) =>
+    0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return palette.reduce((darkest, ink) =>
+    luminance(ink.rgb) < luminance(darkest.rgb) ? ink : darkest,
+  ).rgb;
+}
+
 async function createSelectedInkColorVersion(
   originalBuffer: Buffer,
   palette: readonly PaletteColor[],
@@ -805,7 +834,13 @@ async function createSelectedInkColorVersion(
 
   if (selected.filledRegionCount) {
     return encodeRgb(
-      composeFilledRegions(source, regions, selected.componentColors, palette),
+      composeFilledRegions(
+        source,
+        regions,
+        selected.componentColors,
+        palette,
+        darkestInk(palette),
+      ),
       source.width,
       source.height,
       "filled",

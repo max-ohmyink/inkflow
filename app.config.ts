@@ -6,7 +6,7 @@ const bundleId = "com.inkflow.app";
 
 const env = {
   // App branding - update these values directly (do not use env vars)
-  appName: "Oh My Ink - Live AI Tattoo Experience",
+  appName: "AI Tattoo",
   appSlug: "inkflow",
   scheme: "inkflow",
   iosBundleId: bundleId,

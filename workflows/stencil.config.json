@@ -24,7 +24,7 @@
   "instantDrawProfile": {
     "noMandala": true,
     "conceptPolicy": "Reject mandala or mandalas and the Chinese forms 曼陀羅, 曼陀罗, 曼荼羅, and 曼荼罗.",
-    "artDirection": "One small recognizable motif with approximately 6–12 clean strokes as guidance, minimal interior detail, open whitespace, and no dense effects. AI originals are simple black outlines even for Cyber & ornamental."
+    "artDirection": "One recognizable main subject with a few supporting accents and meaningful interior detail: moderately detailed but still clear at a glance, never dense or ornate. Line weight, shading and colour follow the selected art style."
   },
   "queue": {
     "globalConcurrencyPerProcess": 2,
@@ -34,7 +34,7 @@
   },
   "runtimeOverrides": {
     "STENCIL_THRESHOLD": 180,
-    "STENCIL_MIN_COMPONENT_PIXELS": 3
+    "STENCIL_MIN_COMPONENT_PIXELS": 1
   },
   "pipeline": [
     "validate input against the instant-draw profile, including noMandala; the frontend submits its blank-state Surprise me value as a normal request",

@@ -34,6 +34,7 @@ export function GuestTattooMoment({
   onBack: () => void;
   onNew: () => void;
 }) {
+  // Watercolor shows the original color art first.
   const [showOriginalArtwork, setShowOriginalArtwork] = useState(
     job.filters?.artStyle === "watercolor",
   );
@@ -76,10 +77,6 @@ export function GuestTattooMoment({
       <Text accessibilityRole="header" style={s.title}>
         THIS ONE FEELS LIKE <Text style={s.serif}>you.</Text>
       </Text>
-      <Text style={s.copy}>
-        A little self-expression. No forever. Your tattoo choice is ready—show
-        it to our team and let your next ink moment begin.
-      </Text>
       <View style={s.artFrame}>
         <ArtworkImage
           uri={absoluteAsset(guestArtworkUrl(option, showOriginalArtwork))}
@@ -87,19 +84,10 @@ export function GuestTattooMoment({
           accessibilityLabel={`${artworkVersionLabel(option, showOriginalArtwork)}: ${option.title ?? job.concept}`}
         />
       </View>
-      <Text style={s.concept}>
-        {option.title ?? job.concept}
-      </Text>
+      <Text style={s.concept}>{option.title ?? job.concept}</Text>
       <Text style={[s.copy, { textAlign: "center" }]}>
         {sourceArtworkLabel(option.source ?? job.source)}
       </Text>
-      {job.filters?.artStyle === "watercolor" && (
-        <Text style={s.copy}>
-          Watercolor starts with the painted source artwork. The selected-ink
-          version is a flat fill; our artist may simplify the look for live
-          drawing.
-        </Text>
-      )}
       <RequestedInkSummary
         inks={TATTOO_INKS}
         selected={job.filters?.inkColors}
@@ -138,10 +126,6 @@ export function GuestTattooMoment({
         <Feather name="users" size={20} color={C.blue} />
         <View style={{ flex: 1, gap: 7 }}>
           <Text style={s.nextTitle}>SHOW THIS TO OUR TEAM</Text>
-          <Text style={s.nextCopy}>
-            Show this screen to our team. Our artists will review and simplify
-            the lines for your live-drawn, non-permanent tattoo moment.
-          </Text>
         </View>
       </View>
       {canDownloadStencil && (

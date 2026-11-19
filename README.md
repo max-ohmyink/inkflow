@@ -1,6 +1,6 @@
-# Oh My Ink - Live AI Tattoo Experience
+# AI Tattoo
 
-A browser-first family-event tattoo studio using the supplied Bloomberg Day 2026 artwork/fonts and Oh My Ink’s unchanged original logo. The light cyan/pink/cream/yellow layout works on iPad, desktop and phones. The retained Expo scaffold opens directly in Safari, Chrome or Edge; the web version needs no Expo Go or App Store installation.
+A browser-first family-event tattoo studio using the supplied Bloomberg Day 2026 artwork/fonts. The light cyan/pink/cream/yellow layout works on iPad, desktop and phones. The retained Expo scaffold opens directly in Safari, Chrome or Edge; the web version needs no Expo Go or App Store installation.
 
 ## Guest experience
 

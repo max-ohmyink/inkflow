@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Oh My Ink - Live AI Tattoo Experience",
-  "short_name": "Oh My Ink Live",
-  "description": "Describe an idea, let AI create simple tattoo designs, and choose your next non-permanent ink moment with Oh My Ink.",
+  "name": "AI Tattoo",
+  "short_name": "AI Tattoo",
+  "description": "Describe an idea, let AI create simple tattoo designs, and choose your next non-permanent ink moment.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -3,6 +3,9 @@ import type { AddressInfo } from "node:net";
 import express from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// These suites cover the optional color-version feature, which is off by default.
+process.env.AI_COLOR_VERSIONS = "on";
+
 const mocks = vi.hoisted(() => {
   class MockColorVersionError extends Error {
     constructor() {
@@ -58,6 +61,7 @@ vi.mock("../server/stencils/platform", () => ({
 vi.mock("../server/stencils/colorVersion", () => ({
   ColorVersionError: mocks.ColorVersionError,
   createColorVersion: mocks.color,
+  colorVersionsEnabled: () => true,
   isColorVersionMode: (value: unknown) =>
     value === "monochrome" ||
     value === "red_accent" ||

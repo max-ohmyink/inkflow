@@ -42,12 +42,19 @@ export function GenerationProgress({
 }) {
   const failed = !!error || job?.status === "failed";
   const progress = Math.max(3, Math.min(100, job?.progress || 5));
+  // The small steps follow the real job status (the server reports 12% / 58% / 100%, so
+  // percentage thresholds would leave even "Your idea" unchecked while the AI is drawing).
+  // 0 = Your idea, 1 = AI creation, 2 = Your tattoo choices; `current` is the step in progress.
+  const status = job?.status;
+  const current = status === "ready" ? 3 : status === "processing" ? 2 : 1;
   const stage =
-    progress < 30
-      ? "Exploring your idea"
-      : progress < 75
-        ? "Creating your AI designs"
-        : "Getting your choices ready";
+    status === "ready"
+      ? "Your designs are ready"
+      : status === "processing"
+        ? "Getting your choices ready"
+        : status === "generating"
+          ? "Creating your AI designs"
+          : "Sending your idea to the AI";
   return (
     <View style={s.progressPanel}>
       <View style={s.iconCircle}>
@@ -61,14 +68,12 @@ export function GenerationProgress({
         {failed ? "A LITTLE PAUSE" : "A NEW AI INK MOMENT"}
       </Text>
       <Text style={s.progressTitle}>
-        {failed ? "LET’S TRY THAT AGAIN." : "A LITTLE MORE YOU. COMING UP."}
+        {failed ? "Let’s try that again!" : "Drawing your tattoo…"}
       </Text>
       <Text style={s.progressCopy}>
         {failed
-          ? error ||
-            job?.error ||
-            "Your AI tattoo ideas hit a little pause. Please try again."
-          : "AI is creating simple tattoo choices for your idea, then preparing your chosen colors—including filled petals, leaves and enclosed shapes."}
+          ? error || job?.error || "Please try again."
+          : "AI is creating your tattoo choices."}
       </Text>
       {!failed && (
         <>
@@ -76,16 +81,38 @@ export function GenerationProgress({
             <View style={[s.fill, { width: `${progress}%` }]} />
           </View>
           <View style={s.progressSteps}>
-            {["Your idea", "AI creation", "Your tattoo choices"].map((label, i) => (
-              <View key={label} style={s.progressStep}>
-                <Feather
-                  name={progress >= (i + 1) * 32 ? "check-circle" : "circle"}
-                  size={13}
-                  color={progress >= (i + 1) * 32 ? C.blue : C.muted}
-                />
-                <Text style={s.stepText}>{label}</Text>
-              </View>
-            ))}
+            {["Your idea", "AI creation", "Your tattoo choices"].map(
+              (label, i) => {
+                const done = i < current;
+                const active = i === current;
+                return (
+                  <View
+                    key={label}
+                    style={s.progressStep}
+                    accessibilityLabel={`${label}: ${done ? "done" : active ? "in progress" : "waiting"}`}
+                  >
+                    {active ? (
+                      <ActivityIndicator size="small" color={C.blue} />
+                    ) : (
+                      <Feather
+                        name={done ? "check-circle" : "circle"}
+                        size={15}
+                        color={done ? C.blue : C.muted}
+                      />
+                    )}
+                    <Text
+                      style={[
+                        s.stepText,
+                        (done || active) && s.stepTextOn,
+                        active && s.stepTextActive,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </View>
+                );
+              },
+            )}
           </View>
           <Text style={s.stage}>
             {stage} · {Math.round(progress)}%
@@ -104,15 +131,9 @@ export function GenerationProgress({
         />
       )}
       {canStartNew ? (
-        <SmallButton
-          text="Back to the tattoo finder"
-          onPress={onBack}
-          icon="arrow-left"
-        />
+        <SmallButton text="Start a new design" onPress={onBack} icon="plus" />
       ) : (
-        <Text style={s.progressCopy}>
-          Your request is kept safe. Reconnect before starting another search.
-        </Text>
+        <Text style={s.progressCopy}>Reconnect to continue.</Text>
       )}
     </View>
   );
@@ -140,6 +161,7 @@ export function StencilResults({
   sizeMm: number;
 }) {
   const [artistTools, setArtistTools] = useState(false);
+  // Watercolor shows the original color art first.
   const [showOriginalArtwork, setShowOriginalArtwork] = useState(
     job.filters?.artStyle === "watercolor",
   );
@@ -158,11 +180,7 @@ export function StencilResults({
     try {
       await downloadStencil(
         absoluteAsset(url),
-        stencilFileName(
-          option.title ?? job.concept,
-          option.index,
-          kind,
-        ),
+        stencilFileName(option.title ?? job.concept, option.index, kind),
       );
     } catch (error) {
       setDownloadError(
@@ -182,21 +200,14 @@ export function StencilResults({
             {artistTools ? "ARTIST PREPARATION" : "AI-CREATED FOR YOU."}
           </Text>
           <Text style={s.resultTitle}>
-            PICK YOUR <Text style={s.serif}>ink.</Text>
+            Pick your <Text style={s.serif}>favorite!</Text>
           </Text>
           <Text style={s.resultSub}>
             {`${job.options.length} AI-created ${job.options.length === 1 ? "design" : "designs"} for “${job.concept}”.`}
           </Text>
         </View>
-        <SmallButton text="Find another tattoo" onPress={onNew} icon="plus" />
+        <SmallButton text="Start a new design" onPress={onNew} icon="plus" />
       </View>
-      {!artistTools && job.filters?.artStyle === "watercolor" && (
-        <Text style={s.noticeText}>
-          Watercolor is a digital look, shown from the original painted artwork.
-          Selected-ink versions use flat fills; your artist may simplify the
-          design.
-        </Text>
-      )}
       {!artistTools && !!missingColors && (
         <View
           accessibilityRole="alert"
@@ -350,8 +361,8 @@ export function StencilResults({
         />
         <Text style={s.noticeText}>
           {artistTools
-            ? "Artist preparation: stencils come from the source original artwork, are mirrored once and print in black. Filled color versions are separate guest artwork. Disable printer-side mirroring."
-            : "Temporary, not forever. Choose the one that feels like you and show your choice to our team—we’ll guide your needle-free tattoo experience."}
+            ? "Stencils are mirrored once and print in black. Disable printer-side mirroring."
+            : "Choose one and show it to our team."}
         </Text>
       </View>
     </View>
@@ -391,10 +402,10 @@ export function PrintConfirmation({
       </Text>
       <Text style={s.progressCopy}>
         {pending
-          ? "Preparing the original-resolution mirrored stencil and opening the system print dialog."
+          ? "Preparing your stencil."
           : result === "submitted"
-            ? "The preparation file was handed to the iPad print system. Confirm the physical print with your artist."
-            : "Choose the connected printer and confirm Print in the system dialog. Opening the dialog does not confirm a physical print."}
+            ? "Confirm the print with your artist."
+            : "Choose a printer and confirm Print."}
       </Text>
       <PrimaryButton
         text="Find another tattoo"
@@ -459,7 +470,7 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: 1,
     borderColor: C.line,
-    borderRadius: 2,
+    borderRadius: 16,
     backgroundColor: C.panel,
   },
   toggleText: { fontFamily: F.body, color: C.text, fontSize: 11 },
@@ -471,16 +482,16 @@ const s = StyleSheet.create({
   },
   resultCard: {
     backgroundColor: C.panel,
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 2,
+    borderWidth: 2,
+    borderColor: C.dark,
+    borderRadius: 16,
     overflow: "hidden",
     padding: 13,
   },
   resultArt: {
     aspectRatio: 1,
     backgroundColor: "#fff",
-    borderRadius: 0,
+    borderRadius: 12,
     padding: 18,
   },
   resultImage: { height: "100%", width: "100%" },
@@ -533,7 +544,7 @@ const s = StyleSheet.create({
     backgroundColor: C.raised,
     borderColor: C.line,
     borderWidth: 1,
-    borderRadius: 2,
+    borderRadius: 16,
     padding: 17,
   },
   warningNotice: { borderColor: C.red },
@@ -551,29 +562,29 @@ const s = StyleSheet.create({
     lineHeight: 18,
   },
   downloadError: { color: C.red, fontFamily: F.body, fontSize: 12 },
+  // Compact so step 2 fits inside a card exactly as tall as the step 1 form.
   progressPanel: {
     alignItems: "center",
-    paddingVertical: 70,
-    gap: 17,
+    paddingVertical: 12,
+    gap: 12,
     maxWidth: 600,
     width: "100%",
     alignSelf: "center",
   },
   iconCircle: {
-    width: 94,
-    height: 94,
-    borderRadius: 2,
+    width: 68,
+    height: 68,
+    borderRadius: 999,
     backgroundColor: C.raised,
     borderColor: C.line,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 15,
   },
   progressTitle: {
     fontFamily: F.heading,
     color: C.text,
-    fontSize: 34,
+    fontSize: 30,
     textAlign: "center",
   },
   progressCopy: {
@@ -583,20 +594,26 @@ const s = StyleSheet.create({
     fontSize: 13,
     lineHeight: 22,
     textAlign: "center",
-    marginBottom: 13,
   },
   track: {
-    height: 5,
+    height: 12,
     backgroundColor: C.line,
-    borderRadius: 0,
+    borderRadius: 999,
     width: "90%",
-    marginVertical: 14,
+    marginVertical: 6,
     overflow: "hidden",
   },
-  fill: { height: "100%", backgroundColor: C.blue },
-  progressSteps: { flexDirection: "row", flexWrap: "wrap", gap: 18 },
-  progressStep: { flexDirection: "row", alignItems: "center", gap: 6 },
-  stepText: { color: C.muted, fontFamily: F.body, fontSize: 10 },
+  fill: { height: "100%", backgroundColor: C.blue, borderRadius: 999 },
+  progressSteps: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 18,
+  },
+  progressStep: { flexDirection: "row", alignItems: "center", gap: 7 },
+  stepText: { color: C.muted, fontFamily: F.body, fontSize: 12 },
+  stepTextOn: { color: C.text },
+  stepTextActive: { fontFamily: F.bold },
   stage: {
     fontFamily: F.body,
     color: C.muted,

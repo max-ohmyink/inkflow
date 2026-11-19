@@ -1,12 +1,16 @@
 import type { CatalogArtStyle } from "./catalog-filters";
 
-/** Art-style values accepted for newly created family-event work. */
+/** Art-style values accepted for newly created work. */
 export const ALLOWED_FAMILY_ART_STYLE_IDS = [
   "any",
   "fine_line",
   "old_school",
   "traditional",
   "watercolor",
+  "blackwork",
+  "japanese",
+  "neo_traditional",
+  "tribal",
   "illustrated",
 ] as const satisfies readonly CatalogArtStyle[];
 
@@ -24,25 +28,13 @@ export function isAllowedFamilyArtStyle(
 }
 
 /**
- * This is deliberately a narrow new-work guard. Stored metadata is never passed through it, so
- * historical jobs retain their resolved source records and their original provenance.
+ * The only content rule for new work: no sexual or explicit themes. Classic tattoo subjects such as
+ * skulls, daggers, demons, masks and mandalas are allowed. Stored metadata is never passed through
+ * the new-work guard, so historical jobs retain their resolved source records.
  */
-const UNSAFE_FAMILY_THEME = new RegExp(
-  [
-    // Dense or unsuitable style requests.
-    "\\b(?:mandalas?|sacred\\s+geometry|radial\\s+ornaments?)\\b",
-    "\\b(?:complex|complicated|intricate|detailed)\\s+roses?\\b",
-    "\\b(?:melted|melting|sad|crying)\\s+(?:smile(?:y)?|face)\\b",
-    // Scary figures and graphic injury.
-    "\\b(?:scary|horror|spooky|creepy|evil|demon|devil|skulls?|skeletons?|monsters?|zombies?|vampires?|scary\\s+masks?)\\b",
-    "\\b(?:gore|gory|blood|bloody|wounds?|injury|injuries|dismember(?:ed|ment)?)\\b",
-    // Weapons and explicit themes.
-    "\\b(?:weapons?|guns?|rifles?|pistols?|knives|daggers?|swords?|axes|grenades?|bombs?)\\b",
-    "\\b(?:sexual|explicit|nude|naked|nudity|porn(?:ography)?|genitals?)\\b",
-  ].join("|"),
-  "iu",
-);
+export const EXPLICIT_THEME =
+  /\b(?:sexual|sex|explicit|nude|naked|nudity|porn(?:ography)?|genitals?|erotic)\b/iu;
 
 export function isUnsafeFamilyTheme(concept: string): boolean {
-  return UNSAFE_FAMILY_THEME.test(concept);
+  return EXPLICIT_THEME.test(concept);
 }

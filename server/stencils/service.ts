@@ -15,6 +15,7 @@ import {
 } from "./aiFallback";
 import {
   ColorVersionError,
+  colorVersionsEnabled,
   createColorVersion,
   isColorVersionMode,
   safeColorFailureDetails,
@@ -322,7 +323,8 @@ async function prepareStencilOption(input: {
   originalUpload.catch(() => undefined); // surfaced by the await below; avoid unhandled rejection
 
   const colorTask = (async () => {
-    if (!isColorVersionMode(input.color.colorMode)) return;
+    if (!colorVersionsEnabled() || !isColorVersionMode(input.color.colorMode))
+      return;
     const colorMode = input.color.colorMode;
     try {
       const color = await createColorVersion(

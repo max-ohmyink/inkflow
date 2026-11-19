@@ -28,7 +28,7 @@ import {
   createStencilJob,
   hashCapabilityToken,
 } from "./service";
-import { isColorVersionMode } from "./colorVersion";
+import { colorVersionsEnabled, isColorVersionMode } from "./colorVersion";
 import { aiFallbackOptionTitle } from "./aiFallback";
 import { parseAiJobPrompt } from "./jobMetadata";
 import { parseActualColorTreatments } from "./colorOutcomes";
@@ -99,7 +99,9 @@ async function publicJobPayload(job: StencilJobRow, token: string) {
   const filters = aiPrompt?.filters;
   const colorMode = aiPrompt?.colorMode;
   const hasReadyColorVersion =
-    job.status === "ready" && isColorVersionMode(colorMode);
+    colorVersionsEnabled() &&
+    job.status === "ready" &&
+    isColorVersionMode(colorMode);
   const actualTreatments = parseActualColorTreatments(job.prompt);
 
   return {
@@ -224,7 +226,10 @@ async function redirectAsset(
           ? option?.originalStorageKey
           : kind === "svg"
             ? option?.svgStorageKey
-            : job.status === "ready" && isColorVersionMode(colorMode) && option
+            : colorVersionsEnabled() &&
+                job.status === "ready" &&
+                isColorVersionMode(colorMode) &&
+                option
               ? colorVersionObjectKey(job.id, option.optionIndex, colorMode)
               : undefined;
     if (!key) {

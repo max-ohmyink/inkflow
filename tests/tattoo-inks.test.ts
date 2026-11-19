@@ -187,6 +187,10 @@ describe("tattoo ink palette contract", () => {
       { id: "old_school", label: "Old School" },
       { id: "traditional", label: "Traditional" },
       { id: "watercolor", label: "Watercolor" },
+      { id: "blackwork", label: "Blackwork" },
+      { id: "japanese", label: "Japanese" },
+      { id: "neo_traditional", label: "Neo-Traditional" },
+      { id: "tribal", label: "Tribal" },
     ]);
     expect(() => parseCatalogFilters({ colorMix: "custom" })).toThrow(
       "invalid_catalog_filters",
@@ -237,7 +241,7 @@ describe("custom ink metadata persistence", () => {
 });
 
 describe("custom ink color composition", () => {
-  it("uses only the selected RGB approximation, retains source geometry, black contours, white exterior, and original bytes", async () => {
+  it("uses only the selected RGB approximation, retains source geometry, tints contours with the chosen ink (never black), white exterior, and original bytes", async () => {
     const width = 12;
     const height = 12;
     const sourcePixels = Buffer.alloc(width * height * 3, 255);
@@ -260,7 +264,7 @@ describe("custom ink color composition", () => {
     expect(result).toMatchObject({ width, height, treatment: "filled" });
     expect(output).toMatchObject({ width, height });
     expect(pixelAt(output.pixels, width, 5, 5)).toEqual([138, 79, 255]);
-    expect(pixelAt(output.pixels, width, 3, 5)).toEqual([0, 0, 0]);
+    expect(pixelAt(output.pixels, width, 3, 5)).toEqual([138, 79, 255]);
     expect(pixelAt(output.pixels, width, 0, 0)).toEqual([255, 255, 255]);
     expect(generateImage).not.toHaveBeenCalled();
     const prompt = colorVersionEditPrompt("custom", {

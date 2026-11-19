@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Image,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +17,7 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFonts } from "expo-font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { C, F, StyleId, MediumId } from "@/lib/studio-theme";
+import { C, F, R, StyleId, MediumId } from "@/lib/studio-theme";
 import {
   absoluteAsset,
   checkStudio,
@@ -53,6 +56,29 @@ import {
 } from "@/components/studio-results";
 
 type Screen = "form" | "progress" | "results" | "experience" | "print";
+
+/** Which of the three guest steps each screen belongs to. */
+const STEP_OF: Record<Screen, 1 | 2 | 3> = {
+  form: 1,
+  progress: 2,
+  results: 3,
+  experience: 3,
+  print: 3,
+};
+/** Order used for the slide direction, including the sub-screens of step 3. */
+const SCREEN_ORDER: Record<Screen, number> = {
+  form: 0,
+  progress: 1,
+  results: 2,
+  experience: 3,
+  print: 4,
+};
+/** Each step has its own playful badge color. */
+const STEPS = [
+  { step: 1, n: "1", title: "TELL US YOUR IDEA", color: C.yellow },
+  { step: 2, n: "2", title: "AI IS DRAWING", color: C.pink },
+  { step: 3, n: "3", title: "PICK & TRY", color: C.cyan },
+] as const;
 export default function StudioScreen() {
   const [fontsLoaded, fontError] = useFonts({
     AvenirNextRegular: require("@/assets/fonts/event/AvenirNextPForBBG-Regular.otf"),
@@ -60,7 +86,12 @@ export default function StudioScreen() {
     AvenirNextDemi: require("@/assets/fonts/event/AvenirNextPForBBG-Demi.otf"),
     BloombergPropUnicode: require("@/assets/fonts/event/BloombergPropUnicodeI.ttf"),
   });
-  const { width } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  // The static web export is pre-rendered at width 0 and hydration does not patch styles that
+  // differ, so read the real width only after mount; otherwise desktop keeps the phone layout.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const width = mounted ? windowWidth : 0;
   const insets = useSafeAreaInsets();
   const wide = width >= 920;
   const compact = width < 600;
@@ -96,11 +127,53 @@ export default function StudioScreen() {
   } | null>(null);
   const scroll = useRef<ScrollView>(null);
 
+  // Steps 1–3 share one card; only its content changes, sliding in from the side it comes from.
+  const step = STEP_OF[screen];
+  const slide = useRef(new Animated.Value(1)).current;
+  const slideFrom = useRef(1);
+  const previousScreen = useRef<Screen>(screen);
+  const lastStepThreeScreen = useRef<Screen>("results");
+  useEffect(() => {
+    if (previousScreen.current === screen) return;
+    slideFrom.current =
+      SCREEN_ORDER[screen] >= SCREEN_ORDER[previousScreen.current] ? 1 : -1;
+    previousScreen.current = screen;
+    if (STEP_OF[screen] === 3 && screen !== "print")
+      lastStepThreeScreen.current = screen;
+    slide.setValue(0);
+    Animated.timing(slide, {
+      toValue: 1,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: Platform.OS !== "web",
+    }).start();
+  }, [screen, slide]);
+  const fullWidthStep = step === 3;
+  const [formCardHeight, setFormCardHeight] = useState(0);
+  const hasRequest = Boolean(submitting || saved || job || unconfirmedRequest);
+  const ready = job?.status === "ready";
+  // One-way steps: a finished step can never be reopened; only an available later step can be.
+  // Starting over is a separate, explicit "Start a new design" action that clears the old one.
+  const stepEnabled = (target: 1 | 2 | 3) =>
+    target > step && (target === 2 ? hasRequest : ready);
+  const goToStep = (target: 1 | 2 | 3) => {
+    if (!stepEnabled(target)) return;
+    if (target === 2) setScreen("progress");
+    else
+      setScreen(
+        lastStepThreeScreen.current === "experience" && selectedOption
+          ? "experience"
+          : "results",
+      );
+  };
+
   useEffect(() => {
     loadLibrary().then(setLibrary);
     checkStudio().then(setOnline);
     const syncOffline = () =>
-      setOffline(typeof navigator !== "undefined" && navigator.onLine === false);
+      setOffline(
+        typeof navigator !== "undefined" && navigator.onLine === false,
+      );
     syncOffline();
     if (typeof window !== "undefined" && window.addEventListener) {
       window.addEventListener("online", syncOffline);
@@ -158,13 +231,17 @@ export default function StudioScreen() {
             : "",
         );
         failures = 0;
+        // Only advance a guest who is still watching step 2; someone who went back to step 1
+        // stays there, and step 03 simply becomes available in the step bar.
         if (data.status === "ready") {
-          setScreen("results");
+          setScreen((current) =>
+            current === "progress" ? "results" : current,
+          );
           loadLibrary().then(setLibrary);
           return;
         }
         if (data.status === "failed") {
-          setScreen("progress");
+          setScreen((current) => (current === "form" ? current : "progress"));
           return;
         }
         // Poll aggressively so a finished design appears almost immediately.
@@ -355,10 +432,9 @@ export default function StudioScreen() {
         }}
       >
         <View style={s.container}>
-          <StudioHeader tab={tab} onTab={changeTab} wide={width > 740} />
-          {tab === "create" && screen === "form" && (
-            <>
-              <View style={[s.introRow, compact && { marginTop: 25 }]}>
+          <StudioHeader
+            status={
+              tab === "create" ? (
                 <View style={s.liveBadge}>
                   <View
                     style={[
@@ -374,171 +450,220 @@ export default function StudioScreen() {
                       : "BLOOMBERG DAY 2026 · LIVE"}
                   </Text>
                 </View>
-                <Text style={s.introNote}>A LITTLE ART. A LITTLE YOU.</Text>
+              ) : undefined
+            }
+          />
+          {tab === "create" && (
+            <>
+              {/* One-way step bar: finished steps show a check and stay locked. */}
+              <View
+                accessibilityRole="tablist"
+                style={[s.howStrip, compact && { gap: 4 }]}
+              >
+                {STEPS.map((item) => {
+                  const active = item.step === step;
+                  const enabled = stepEnabled(item.step);
+                  const done = item.step < step;
+                  const upcoming = item.step > step;
+                  return (
+                    <Pressable
+                      key={item.n}
+                      accessibilityRole="tab"
+                      accessibilityState={{
+                        selected: active,
+                        disabled: !enabled,
+                      }}
+                      disabled={!enabled}
+                      onPress={() => goToStep(item.step)}
+                      style={({ pressed }) => [
+                        s.howItem,
+                        compact && { width: "100%" },
+                        active && s.howItemActive,
+                        upcoming && !enabled && s.howItemDisabled,
+                        enabled && pressed && s.howItemHover,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          s.howNumberBox,
+                          { backgroundColor: done ? C.white : item.color },
+                        ]}
+                      >
+                        {done ? (
+                          <Feather name="check" size={18} color={C.blue} />
+                        ) : (
+                          <Text style={s.howNumber}>{item.n}</Text>
+                        )}
+                      </View>
+                      <Text style={[s.howTitle, done && s.howTitleDone]}>
+                        {item.title}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
+              {/* Steps 1–2 share one card beside the poster; step 3 drops the card and goes full width. */}
               <View
                 style={[
                   s.studioBody,
                   !wide && { flexDirection: "column", gap: 22 },
                 ]}
               >
-                <View style={[s.editorial, !wide && { width: "100%" }]}>
-                  <EventPoster compact={compact} />
-                </View>
                 <View
+                  // Step 2 uses exactly the height the step 1 form card had.
+                  onLayout={(e) => {
+                    if (screen === "form")
+                      setFormCardHeight(e.nativeEvent.layout.height);
+                  }}
                   style={[
-                    s.formColumn,
+                    fullWidthStep ? s.fullWidthStep : s.formColumn,
                     !wide && {
                       width: "100%",
                     },
+                    step === 2 &&
+                      formCardHeight > 0 && {
+                        // minHeight too: in the phone's column layout `flex: 1` would shrink it.
+                        height: formCardHeight,
+                        minHeight: formCardHeight,
+                      },
                   ]}
                 >
-                  <StudioForm
-                    onGenerate={(concept, style, medium, filters) =>
-                      generate(concept, style, medium, false, filters)
-                    }
-                    filters={catalogFilters}
-                    onFiltersChange={setCatalogFilters}
-                    busy={submitting}
-                    offline={offline}
-                    externalError={error}
-                    initialQuery={lastRequest.current?.concept}
-                  />
-                </View>
-              </View>
-              <View style={s.howStrip}>
-                {[
-                  [
-                    "01",
-                    "FIND YOUR VIBE",
-                    "Tell us a theme or a little idea.",
-                  ],
-                  [
-                    "02",
-                    "CREATED BY AI.",
-                    "Simple, family-friendly designs made just for you.",
-                  ],
-                  [
-                    "03",
-                    "CHOOSE. TRY. ENJOY.",
-                    "Our team brings your tattoo moment to life.",
-                  ],
-                ].map(([n, title, copy]) => (
-                  <View
-                    style={[s.howItem, compact && { width: "100%" }]}
-                    key={n}
+                  <Animated.View
+                    key={screen}
+                    style={{
+                      ...(step === 2 && {
+                        flex: 1,
+                        justifyContent: "center",
+                      }),
+                      opacity: slide,
+                      transform: [
+                        {
+                          translateX: slide.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [40 * slideFrom.current, 0],
+                          }),
+                        },
+                      ],
+                    }}
                   >
-                    <Text style={s.howNumber}>{n}</Text>
-                    <View>
-                      <Text style={s.howTitle}>{title}</Text>
-                      <Text style={s.howCopy}>{copy}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-              <View style={s.eventRibbon}>
-                <View style={{ flex: 1, minWidth: 160 }}>
-                  <Text style={s.ribbonTitle}>Little ideas. Big smiles.</Text>
-                  <Text style={s.ribbonCopy}>
-                    A simple tattoo moment for the whole family.
-                  </Text>
+                    {screen === "form" && (
+                      <StudioForm
+                        onGenerate={(concept, style, medium, filters) =>
+                          generate(concept, style, medium, false, filters)
+                        }
+                        filters={catalogFilters}
+                        onFiltersChange={setCatalogFilters}
+                        busy={submitting}
+                        offline={offline}
+                        externalError={error}
+                        initialQuery={lastRequest.current?.concept}
+                        wide={!compact}
+                      />
+                    )}
+                    {screen === "progress" && (
+                      <GenerationProgress
+                        job={job}
+                        error={error}
+                        onRetry={retry}
+                        onBack={newDesign}
+                        canStartNew={!unconfirmedRequest && !submitting}
+                      />
+                    )}
+                    {screen === "results" && job?.status === "ready" && (
+                      <>
+                        {error && (
+                          <View style={s.errorBar}>
+                            <Feather
+                              name="alert-circle"
+                              size={15}
+                              color={C.accentInk}
+                            />
+                            <Text style={s.errorText}>{error}</Text>
+                            <Pressable
+                              onPress={() => setError("")}
+                              accessibilityRole="button"
+                              accessibilityLabel="Dismiss message"
+                              hitSlop={12}
+                            >
+                              <Feather name="x" size={18} color={C.muted} />
+                            </Pressable>
+                          </View>
+                        )}
+                        <StencilResults
+                          job={job}
+                          showOriginal={showOriginal}
+                          onToggleOriginal={() => setShowOriginal((v) => !v)}
+                          onSelect={(option) => {
+                            setSelectedOption(option);
+                            setScreen("experience");
+                          }}
+                          onPrint={print}
+                          onNew={newDesign}
+                          compact={compact}
+                          printing={printing}
+                          sizeMm={sizeMm}
+                        />
+                      </>
+                    )}
+                    {screen === "experience" &&
+                      job?.status === "ready" &&
+                      selectedOption && (
+                        <GuestTattooMoment
+                          job={job}
+                          option={selectedOption}
+                          onBack={() => setScreen("results")}
+                          onNew={newDesign}
+                        />
+                      )}
+                    {screen === "print" && (
+                      <PrintConfirmation
+                        pending={printing}
+                        result={printResult}
+                        onBack={() =>
+                          setScreen(selectedOption ? "experience" : "results")
+                        }
+                        onNew={newDesign}
+                      />
+                    )}
+                  </Animated.View>
                 </View>
-                <Image
-                  source={require("@/assets/event-brand/waterworks-wide.png")}
-                  resizeMode="cover"
-                  accessible={false}
-                  style={{ width: 220, height: 70, borderRadius: 4 }}
-                />
-              </View>
-              <WebAppGuide />
-            </>
-          )}
-          {tab === "create" && screen === "progress" && (
-            <GenerationProgress
-              job={job}
-              error={error}
-              onRetry={retry}
-              onBack={newDesign}
-              canStartNew={!unconfirmedRequest && !submitting}
-            />
-          )}
-          {tab === "create" &&
-            screen === "results" &&
-            job?.status === "ready" && (
-              <>
-                {error && (
-                  <View style={s.errorBar}>
-                    <Feather
-                      name="alert-circle"
-                      size={15}
-                      color={C.accentInk}
-                    />
-                    <Text style={s.errorText}>{error}</Text>
-                    <Pressable
-                      onPress={() => setError("")}
-                      accessibilityRole="button"
-                      accessibilityLabel="Dismiss message"
-                      hitSlop={12}
-                    >
-                      <Feather name="x" size={18} color={C.muted} />
-                    </Pressable>
+                {/* Step 3 is full width like before: no poster, ribbon or guide. */}
+                {!fullWidthStep && (
+                  <View style={[s.editorial, !wide && { width: "100%" }]}>
+                    <EventPoster compact={compact} />
                   </View>
                 )}
-                <StencilResults
-                  job={job}
-                  showOriginal={showOriginal}
-                  onToggleOriginal={() => setShowOriginal((v) => !v)}
-                  onSelect={(option) => {
-                    setSelectedOption(option);
-                    setScreen("experience");
-                  }}
-                  onPrint={print}
-                  onNew={newDesign}
-                  compact={compact}
-                  printing={printing}
-                  sizeMm={sizeMm}
-                />
-              </>
-            )}
-          {tab === "create" &&
-            screen === "experience" &&
-            job?.status === "ready" &&
-            selectedOption && (
-              <GuestTattooMoment
-                job={job}
-                option={selectedOption}
-                onBack={() => setScreen("results")}
-                onNew={newDesign}
-              />
-            )}
-          {tab === "create" && screen === "print" && (
-            <PrintConfirmation
-              pending={printing}
-              result={printResult}
-              onBack={() =>
-                setScreen(selectedOption ? "experience" : "results")
-              }
-              onNew={newDesign}
-            />
+              </View>
+              {!fullWidthStep && (
+                <>
+                  <View style={s.eventRibbon}>
+                    <View style={{ flex: 1, minWidth: 160 }}>
+                      <Text style={s.ribbonTitle}>
+                        Little ideas. Big smiles.
+                      </Text>
+                    </View>
+                    <Image
+                      source={require("@/assets/event-brand/waterworks-wide.png")}
+                      resizeMode="cover"
+                      accessible={false}
+                      style={{ width: 220, height: 70, borderRadius: 16 }}
+                    />
+                  </View>
+                  <WebAppGuide />
+                </>
+              )}
+            </>
           )}
           {tab === "library" && (
             <View style={s.secondary}>
-              <Text style={s.eyebrow}>YOUR TATTOO MOMENTS</Text>
               <Text style={s.sectionTitle}>
                 YOUR <Text style={s.sectionSerif}>designs.</Text>
-              </Text>
-              <Text style={s.secondaryCopy}>
-                Pick up where you left off. Saved in this browser on this
-                device.
               </Text>
               {library.length === 0 ? (
                 <View style={s.empty}>
                   <Feather name="layers" size={42} color={C.accentInk} />
                   <Text style={s.emptyTitle}>
                     YOUR STORY STARTS WITH AN IDEA.
-                  </Text>
-                  <Text style={s.secondaryCopy}>
-                    Your AI-created tattoo choices will be waiting here.
                   </Text>
                   <PrimaryButton
                     text="Find my first tattoo"
@@ -566,9 +691,6 @@ export default function StudioScreen() {
                       </View>
                       <View style={{ flex: 1, gap: 7 }}>
                         <Text style={s.libraryConcept}>{record.concept}</Text>
-                        <Text style={s.libraryDetail}>
-                          Saved tattoo request · open to view artwork
-                        </Text>
                         <Text style={s.libraryDate}>
                           {new Date(record.createdAt).toLocaleDateString()}
                         </Text>
@@ -586,18 +708,11 @@ export default function StudioScreen() {
           )}
           {tab === "settings" && (
             <View style={s.secondary}>
-              <Text style={s.eyebrow}>
-                ARTIST PREPARATION — NOT THE GUEST JOURNEY
-              </Text>
               <Text style={s.sectionTitle}>
                 ARTIST <Text style={s.sectionSerif}>settings.</Text>
               </Text>
               <View style={s.settingsPanel}>
                 <Text style={s.settingTitle}>PRINT WIDTH</Text>
-                <Text style={s.secondaryCopy}>
-                  Set the artwork width. Aspect ratio and full-resolution pixels
-                  are preserved.
-                </Text>
                 <View style={s.sizeRow}>
                   {[40, 60, 80, 100].map((size) => (
                     <Pressable
@@ -637,12 +752,6 @@ export default function StudioScreen() {
                   </View>
                   <Feather name="printer" size={24} color={C.accentInk} />
                 </View>
-                <Text style={s.settingNote}>
-                  On desktop, use the browser’s system print dialog. On iPad,
-                  Safari can print to an AirPrint-compatible printer on the same
-                  network. Disable printer-side mirroring—stencils are already
-                  mirrored.
-                </Text>
                 <View style={s.settingDivider} />
                 <View style={s.statusRow}>
                   <View>
@@ -667,10 +776,6 @@ export default function StudioScreen() {
               </View>
               <View style={s.settingsPanel}>
                 <Text style={s.settingTitle}>THIS DEVICE’S DESIGN HISTORY</Text>
-                <Text style={s.secondaryCopy}>
-                  Clearing history removes this device’s access to saved
-                  designs. It does not delete stored artwork from the server.
-                </Text>
                 <SmallButton
                   text="Clear device history"
                   onPress={() => setClearModal(true)}
@@ -691,10 +796,6 @@ export default function StudioScreen() {
         <View style={s.modalBackdrop}>
           <View style={s.modalCard}>
             <Text style={s.emptyTitle}>CLEAR DEVICE HISTORY?</Text>
-            <Text style={s.secondaryCopy}>
-              Saved design access will be removed from this device. Server
-              artwork will not be deleted.
-            </Text>
             <PrimaryButton
               text="Clear history"
               onPress={async () => {
@@ -702,7 +803,9 @@ export default function StudioScreen() {
                   await removeLocalHistory();
                 } catch {
                   setClearModal(false);
-                  setError("Could not clear history on this device. Please try again.");
+                  setError(
+                    "Could not clear history on this device. Please try again.",
+                  );
                   return;
                 }
                 setUnconfirmedRequest(false);
@@ -755,8 +858,9 @@ const s = StyleSheet.create({
   },
   studioBody: {
     flexDirection: "row",
+    alignItems: "stretch",
     gap: 24,
-    paddingTop: 24,
+    paddingTop: 20,
     paddingBottom: 34,
   },
   editorial: { width: "42%" },
@@ -771,30 +875,60 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: C.white,
     borderColor: C.dark,
-    borderWidth: 1,
-    borderRadius: 8,
+    borderWidth: 2,
+    borderRadius: R.card,
     padding: 26,
+    // Keeps the sliding step content inside the card.
+    overflow: "hidden",
+    minHeight: 460,
   },
+  // Step 3: full width, no card frame (as before), still clipping the slide.
+  fullWidthStep: { flex: 1, overflow: "hidden" },
   howStrip: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 28,
+    gap: 12,
     justifyContent: "space-between",
     backgroundColor: C.white,
     borderColor: C.dark,
-    borderWidth: 1,
-    borderRadius: 7,
-    padding: 23,
-    marginBottom: 32,
+    borderWidth: 2,
+    borderRadius: R.card,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginTop: 20,
   },
-  howItem: { flexDirection: "row", alignItems: "center", gap: 15 },
-  howNumber: { fontFamily: F.mono, color: C.text, fontSize: 34 },
+  howItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 6,
+    paddingLeft: 6,
+    paddingRight: 16,
+    borderRadius: R.pill,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  howItemActive: { borderColor: C.dark, backgroundColor: C.bg },
+  howItemHover: { backgroundColor: C.bg },
+  howItemDisabled: { opacity: 0.4 },
+  // Round, colored number badges (yellow, pink, cyan); a white check once a step is done.
+  howNumberBox: {
+    width: 38,
+    height: 38,
+    borderRadius: R.pill,
+    borderWidth: 2,
+    borderColor: C.dark,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  howNumber: { fontFamily: F.heading, color: C.text, fontSize: 19 },
   howTitle: {
     color: C.text,
     fontFamily: F.heading,
-    fontSize: 12,
-    letterSpacing: 1.25,
+    fontSize: 13,
+    letterSpacing: 1.1,
   },
+  howTitleDone: { color: C.muted },
   howCopy: { color: C.muted, fontFamily: F.body, fontSize: 9, marginTop: 6 },
   eventRibbon: {
     flexDirection: "row",

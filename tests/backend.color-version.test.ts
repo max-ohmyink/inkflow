@@ -4,6 +4,9 @@ import express from "express";
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// These suites cover the optional color-version feature, which is off by default.
+process.env.AI_COLOR_VERSIONS = "on";
+
 const mocks = vi.hoisted(() => ({
   findJob: vi.fn(),
   findRequest: vi.fn(),

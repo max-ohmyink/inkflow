@@ -111,16 +111,8 @@ describe("INKFLOW approved prompt compiler", () => {
     );
   });
 
-  it.each([
-    "mandala",
-    "MANDALAS",
-    "small mandala flower",
-    "曼陀羅",
-    "曼陀罗",
-    "曼荼羅",
-    "曼荼罗",
-  ])(
-    "rejects the instant-draw concept %s in parser and compiler",
+  it.each(["nude figure", "EXPLICIT pin-up", "porn star", "naked angel"])(
+    "rejects the explicit concept %s in parser and compiler",
     (concept) => {
       expect(isDisallowedInstantDrawConcept(concept)).toBe(true);
       expect(() => parseStencilInput({ ...validRequest, concept })).toThrow(
@@ -132,17 +124,18 @@ describe("INKFLOW approved prompt compiler", () => {
     },
   );
 
-  it("allows Mandalay while exposing the shared instant-draw message", () => {
-    expect(isDisallowedInstantDrawConcept("Mandalay travel sketch")).toBe(
-      false,
-    );
-    expect(
-      parseStencilInput({ ...validRequest, concept: "Mandalay travel sketch" })
-        .concept,
-    ).toBe("Mandalay travel sketch");
-    expect(INSTANT_DRAW_MESSAGE).toBe(
-      "Let's keep it simple for instant drawing—try a heart, flower, smiley or small symbol.",
-    );
+  it.each(["mandala", "small mandala flower", "曼陀羅", "skull with a dagger"])(
+    "allows the classic tattoo concept %s",
+    (concept) => {
+      expect(isDisallowedInstantDrawConcept(concept)).toBe(false);
+      expect(parseStencilInput({ ...validRequest, concept }).concept).toBe(
+        concept,
+      );
+    },
+  );
+
+  it("exposes the shared neutral message", () => {
+    expect(INSTANT_DRAW_MESSAGE).toBe("Please try a different idea.");
   });
 
   it("accepts optional requestId but rejects multiline concepts and unknown choices", () => {

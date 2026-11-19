@@ -1,19 +1,41 @@
 import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { C, F, type MediumId, type StyleId } from "@/lib/studio-theme";
+import { C, F, R, type MediumId, type StyleId } from "@/lib/studio-theme";
 import { PrimaryButton, StepLabel } from "./studio-ui";
 import { ChoicePicker } from "./choice-picker";
 import { TattooInkPicker } from "./tattoo-ink-picker";
 import { TATTOO_INKS, validateTattooInkIds } from "@/shared/tattoo-inks";
 import { isDisallowedInstantDrawConcept } from "@/shared/instant-draw";
 import {
-  CATALOG_STYLE_OPTIONS,
   CATALOG_COLOR_OPTIONS,
+  CATALOG_STYLE_OPTIONS,
   DEFAULT_CATALOG_FILTERS,
   catalogFinderFilters,
   type CatalogFilters,
 } from "@/shared/catalog-filters";
+
+/** The art styles the guest can pick; Fine Line (first) is the default look. */
+const PICKABLE_STYLE_IDS = [
+  "fine_line",
+  "traditional",
+  "neo_traditional",
+  "blackwork",
+  "tribal",
+  "watercolor",
+  "japanese",
+] as const;
+const STYLE_CHOICES = PICKABLE_STYLE_IDS.map((id) =>
+  CATALOG_STYLE_OPTIONS.find((option) => option.id === id)!,
+);
+const isPickableStyle = (style: string) =>
+  (PICKABLE_STYLE_IDS as readonly string[]).includes(style);
+
+/** Blackwork is black ink only, so any previously chosen ink colors are dropped. */
+function withoutInkColors(filters: CatalogFilters): CatalogFilters {
+  const { inkColors: _inkColors, ...rest } = filters;
+  return { ...rest, colorMix: "any" };
+}
 
 export function StudioForm({
   onGenerate,
@@ -23,7 +45,10 @@ export function StudioForm({
   initialQuery,
   filters,
   onFiltersChange,
+  wide = true,
 }: {
+  /** Kept for callers; the pickers wrap on their own on narrow screens. */
+  wide?: boolean;
   onGenerate: (
     concept: string,
     style: StyleId,
@@ -39,10 +64,13 @@ export function StudioForm({
 }) {
   const [concept, setConcept] = useState(initialQuery || "");
   const [touched, setTouched] = useState(false);
+  const [focused, setFocused] = useState(false);
   const input = useRef<TextInput>(null);
   const disallowed = isDisallowedInstantDrawConcept(concept);
-  const finderFilters = catalogFinderFilters(filters);
-  const styleOptions = CATALOG_STYLE_OPTIONS;
+  const blackOnly = filters.artStyle === "blackwork";
+  const finderFilters = catalogFinderFilters(
+    blackOnly ? withoutInkColors(filters) : filters,
+  );
   const submit = () => {
     setTouched(true);
     if (disallowed || busy) return;
@@ -51,209 +79,180 @@ export function StudioForm({
   };
   return (
     <View style={s.form}>
-      <StepLabel number="01" title="Find your tattoo" />
-      <Text style={s.label}>Generate your tattoo live!</Text>
-      <Text style={s.copy}>
-        Describe a simple, family-friendly idea and AI will create tattoo
-        designs in your chosen style.
-      </Text>
-      <View
-        style={[s.inputBox, touched && disallowed && { borderColor: C.red }]}
-      >
-        <Feather name="search" color={C.accentInk} size={19} />
-        <TextInput
-          ref={input}
-          accessibilityLabel="Your tattoo prompt"
-          value={concept}
-          onChangeText={setConcept}
-          placeholder="A heart, a flower, a friendly animal…"
-          placeholderTextColor="#72726F"
-          maxLength={160}
-          style={s.input}
-          onSubmitEditing={submit}
-          returnKeyType="search"
-        />
+      {/* 1. What this card is for. */}
+      <View style={s.section}>
+        <StepLabel number="01" title="Find your tattoo" />
+        <Text style={s.label}>Generate your tattoo live!</Text>
       </View>
-      <Text style={s.smallCopy}>
-        Leave the prompt blank for a surprise that fits your choices.
-      </Text>
-      {touched && disallowed && (
-        <Text accessibilityRole="alert" style={s.error}>
-          Mandala designs aren’t part of this experience. Try another theme.
-        </Text>
-      )}
-      {!!externalError && (
-        <Text accessibilityRole="alert" style={s.error}>
-          {externalError}
-        </Text>
-      )}
-      <View style={s.suggestions}>
-        {["Hearts", "Flowers", "Animals", "Stars"].map((idea) => (
+      {/* 2. The idea, with its errors right under it. */}
+      <View style={s.section}>
+        <View
+          style={[
+            s.inputBox,
+            focused && s.inputBoxFocused,
+            touched && disallowed && { borderColor: C.red },
+          ]}
+        >
+          <Feather name="search" color={C.accentInk} size={21} />
+          <TextInput
+            ref={input}
+            accessibilityLabel="Your tattoo prompt"
+            value={concept}
+            onChangeText={setConcept}
+            placeholder="A happy cat, a rainbow, a smiling sun…"
+            placeholderTextColor="#72726F"
+            maxLength={160}
+            style={s.input}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            onSubmitEditing={submit}
+            returnKeyType="search"
+          />
+        </View>
+        {touched && disallowed && (
+          <Text accessibilityRole="alert" style={s.error}>
+            Let’s try a different idea.
+          </Text>
+        )}
+        {!!externalError && (
+          <Text accessibilityRole="alert" style={s.error}>
+            {externalError}
+          </Text>
+        )}
+      </View>
+      {/* 3. Options, with Reset beside them so it clearly belongs to the pickers. */}
+      <View style={s.section}>
+        <View style={s.optionsHeader}>
+          <Text style={s.optionsTitle}>Options</Text>
           <Pressable
-            key={idea}
             accessibilityRole="button"
-            onPress={() => setConcept(idea)}
-            style={s.suggestion}
-          >
-            <Text style={s.suggestionText}>{idea}</Text>
-            <Feather name="plus" size={11} color={C.muted} />
-          </Pressable>
-        ))}
-      </View>
-      <View style={s.options}>
-        <View style={s.choiceColumn}>
-          <ChoicePicker
-            label="Art style"
-            value={filters.artStyle}
-            options={styleOptions}
-            fallbackLabel={
-              filters.artStyle === "any" ? "Any art style" : "Saved style"
-            }
-            onChange={(artStyle) =>
+            onPress={() =>
               onFiltersChange({
-                ...filters,
-                artStyle: artStyle as CatalogFilters["artStyle"],
+                ...DEFAULT_CATALOG_FILTERS,
+                category: filters.category,
               })
             }
-          />
+            hitSlop={8}
+            style={{ paddingVertical: 4 }}
+          >
+            <Text style={s.reset}>Reset options</Text>
+          </Pressable>
         </View>
-        <View style={s.choiceColumn}>
-          <TattooInkPicker
-            inks={TATTOO_INKS}
-            selected={filters.inkColors || []}
-            legacyLabel={
-              filters.colorMix !== "any" && filters.colorMix !== "custom"
-                ? CATALOG_COLOR_OPTIONS.find(
-                    (option) => option.id === filters.colorMix,
-                  )?.label
-                : undefined
-            }
-            onChange={(ids) => {
-              const { inkColors: previous, ...base } = filters;
-              onFiltersChange(
-                ids.length
-                  ? {
-                      ...base,
-                      colorMix: "custom",
-                      inkColors: validateTattooInkIds(ids),
-                    }
-                  : { ...base, colorMix: "any" },
-              );
-            }}
-          />
+        <View style={s.options}>
+          {/* Keeps half width when Blackwork hides Color mix, so the layout doesn't jump. */}
+          <View
+            style={[s.choiceColumn, wide && blackOnly && { maxWidth: "50%" }]}
+          >
+            <ChoicePicker
+              label="Art style"
+              value={
+                isPickableStyle(filters.artStyle)
+                  ? filters.artStyle
+                  : "fine_line"
+              }
+              options={STYLE_CHOICES}
+              fallbackLabel="Fine Line"
+              onChange={(artStyle) => {
+                const next = artStyle as CatalogFilters["artStyle"];
+                onFiltersChange({
+                  ...(next === "blackwork"
+                    ? withoutInkColors(filters)
+                    : filters),
+                  artStyle: next,
+                });
+              }}
+            />
+          </View>
+          {!blackOnly && (
+            <View style={s.choiceColumn}>
+              <TattooInkPicker
+                inks={TATTOO_INKS}
+                selected={filters.inkColors || []}
+                legacyLabel={
+                  filters.colorMix !== "any" && filters.colorMix !== "custom"
+                    ? CATALOG_COLOR_OPTIONS.find(
+                        (option) => option.id === filters.colorMix,
+                      )?.label
+                    : undefined
+                }
+                onChange={(ids) => {
+                  const { inkColors: _previous, ...base } = filters;
+                  onFiltersChange(
+                    ids.length
+                      ? {
+                          ...base,
+                          colorMix: "custom",
+                          inkColors: validateTattooInkIds(ids),
+                        }
+                      : { ...base, colorMix: "any" },
+                  );
+                }}
+              />
+            </View>
+          )}
         </View>
-        <Text style={[s.smallCopy, { width: "100%" }]}>
-          Choose up to 3 of your tattoo inks for filled shapes. Simple contours
-          stay clear; the untouched original is kept separately. Selected-ink
-          fills do not need AI coloring.
-        </Text>
       </View>
-      {filters.artStyle === "watercolor" && (
-        <Text style={s.smallCopy}>
-          Watercolor is a digital color-wash look. Your artist may simplify it
-          for live drawing; selected-ink versions use flat fills, not watercolor
-          texture.
-        </Text>
-      )}
-      <Pressable
-        accessibilityRole="button"
-        onPress={() =>
-          onFiltersChange({
-            ...DEFAULT_CATALOG_FILTERS,
-            category: filters.category,
-          })
-        }
-        style={{ paddingVertical: 6 }}
-      >
-        <Text style={s.reset}>Reset options</Text>
-      </Pressable>
+      {/* 4. The one primary action, last in the card. */}
       <PrimaryButton
         text={
           busy
             ? "Preparing your tattoo…"
             : offline
-              ? "You’re offline — reconnect to continue"
+              ? "You’re offline"
               : "Generate my tattoo"
         }
         onPress={submit}
         disabled={busy || offline}
         icon="arrow-right"
       />
-      <Text style={s.underText}>
-        Created live by AI, in your chosen style and colors.
-      </Text>
-      <View style={s.footer}>
-        <Feather name="heart" size={13} color={C.accentInk} />
-        <Text style={s.footerText}>
-          Simple lines. No mandalas. A little you, without the forever.
-        </Text>
-      </View>
     </View>
   );
 }
 const s = StyleSheet.create({
-  form: { gap: 13, paddingTop: 3 },
-  label: { fontFamily: F.heading, color: C.text, fontSize: 28, lineHeight: 34 },
-  copy: { fontFamily: F.body, color: C.muted, fontSize: 12, lineHeight: 20 },
-  smallCopy: {
-    fontFamily: F.body,
-    color: C.muted,
-    fontSize: 10,
-    lineHeight: 18,
+  form: { gap: 28, paddingTop: 3 },
+  section: { gap: 10 },
+  optionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
+  optionsTitle: {
+    fontFamily: F.bold,
+    color: C.muted,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  label: { fontFamily: F.heading, color: C.text, fontSize: 32, lineHeight: 38 },
   inputBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    borderWidth: 1,
-    borderColor: C.line,
+    borderWidth: 2,
+    borderColor: C.dark,
     backgroundColor: C.panel,
-    borderRadius: 7,
-    minHeight: 62,
-    paddingHorizontal: 18,
+    borderRadius: R.control,
+    minHeight: 66,
+    paddingHorizontal: 20,
   },
+  inputBoxFocused: { borderColor: C.yellow },
   input: {
     flex: 1,
     color: C.text,
     fontFamily: F.body,
-    fontSize: 15,
+    fontSize: 17,
     paddingVertical: 18,
+    // Web: no browser focus rectangle; the rounded box around the input shows focus instead.
+    ...({ outlineStyle: "none", outlineWidth: 0 } as object),
   },
-  error: { color: C.red, fontFamily: F.body, fontSize: 12, lineHeight: 20 },
-  suggestions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  suggestion: {
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  suggestionText: { fontFamily: F.body, color: C.muted, fontSize: 11 },
+  error: { color: C.red, fontFamily: F.bold, fontSize: 14, lineHeight: 20 },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 13 },
   choiceColumn: { flex: 1, minWidth: 150 },
-  reset: { color: C.accentInk, fontFamily: F.bold, fontSize: 10 },
-  underText: {
-    fontFamily: F.body,
-    color: C.muted,
-    fontSize: 10,
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: C.line,
-    paddingTop: 20,
-    flexDirection: "row",
-    gap: 8,
-  },
-  footerText: {
-    flex: 1,
-    fontFamily: F.body,
-    color: C.muted,
-    fontSize: 10,
-    lineHeight: 18,
+  reset: {
+    color: C.accentInk,
+    fontFamily: F.bold,
+    fontSize: 12,
+    textDecorationLine: "underline",
   },
 });

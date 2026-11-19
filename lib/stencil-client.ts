@@ -104,7 +104,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       asset_unavailable:
         "The stencil file is temporarily unavailable. Please try again.",
       family_design_only:
-        "We keep designs family-friendly. Please try a different theme or pick a design below.",
+        "This idea can’t be created here. Please try a different one.",
       origin_not_allowed:
         "This page can’t reach the studio from here. Please open the studio from its main address.",
       not_found: "That design could not be found. Please start a new search.",

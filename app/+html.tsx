@@ -11,15 +11,15 @@ export default function Root({ children }: PropsWithChildren) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
-        <title>Oh My Ink - Live AI Tattoo Experience</title>
+        <title>AI Tattoo</title>
         <meta
           name="description"
-          content="Describe an idea and let AI create simple tattoo designs for you, choose filled colors, and enjoy your next non-permanent ink moment with the Oh My Ink team."
+          content="Describe an idea and let AI create simple tattoo designs for you, choose filled colors, and enjoy your next non-permanent ink moment."
         />
         <meta name="theme-color" content="#FFECDE" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="Oh My Ink Live" />
+        <meta name="apple-mobile-web-app-title" content="AI Tattoo" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/web-icons/apple-touch-icon.png" />
