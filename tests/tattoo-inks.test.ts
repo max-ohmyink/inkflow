@@ -108,48 +108,38 @@ describe("tattoo ink palette contract", () => {
     expect(
       extracted.inks.map(({ id, name, hex }) => ({ id, name, hex })),
     ).toEqual(TATTOO_INKS);
-    expect(extracted.inks).toHaveLength(20);
+    expect(extracted.inks).toHaveLength(10);
     expect(extracted.inks.map((ink) => ink.id)).toEqual([
-      "cool_purple",
-      "purple",
-      "warm_purple",
-      "rose_pink",
       "red",
-      "cherry_red",
-      "deep_red",
-      "rust_red",
-      "brown",
-      "black",
-      "lemon_yellow",
-      "apricot_yellow",
       "orange",
-      "light_green",
+      "gold",
       "green",
-      "dark_green",
-      "lake_blue",
+      "mint_green",
       "sky_blue",
-      "navy_blue",
-      "tattoo_blue",
+      "purple",
+      "white",
+      "silver",
+      "black",
     ]);
   });
 
   it("accepts only one to three unique IDs and exposes their exact RGB screen approximations", () => {
-    expect(validateTattooInkIds(["cool_purple", "lemon_yellow"])).toEqual([
-      "cool_purple",
-      "lemon_yellow",
+    expect(validateTattooInkIds(["purple", "gold"])).toEqual([
+      "purple",
+      "gold",
     ]);
-    expect(tattooInkPalette(["cool_purple", "lemon_yellow"])).toEqual([
+    expect(tattooInkPalette(["purple", "gold"])).toEqual([
       {
-        id: "cool_purple",
-        name: "Cool Purple",
-        hex: "#483468",
-        rgb: [72, 52, 104],
+        id: "purple",
+        name: "Purple",
+        hex: "#512E5F",
+        rgb: [81, 46, 95],
       },
       {
-        id: "lemon_yellow",
-        name: "Lemon Yellow",
-        hex: "#A99740",
-        rgb: [169, 151, 64],
+        id: "gold",
+        name: "Gold",
+        hex: "#A9833C",
+        rgb: [169, 131, 60],
       },
     ]);
     expect(() => validateTattooInkIds([])).toThrow(
@@ -159,7 +149,7 @@ describe("tattoo ink palette contract", () => {
       "invalid_tattoo_ink_selection",
     );
     expect(() =>
-      validateTattooInkIds(["red", "green", "blue", "black"]),
+      validateTattooInkIds(["red", "green", "sky_blue", "black"]),
     ).toThrow("invalid_tattoo_ink_selection");
     expect(() => validateTattooInkIds(["invented"])).toThrow(
       "invalid_tattoo_ink_selection",
@@ -188,6 +178,7 @@ describe("tattoo ink palette contract", () => {
       { id: "traditional", label: "Traditional" },
       { id: "watercolor", label: "Watercolor" },
       { id: "blackwork", label: "Blackwork" },
+      { id: "engraving", label: "Engraving" },
       { id: "japanese", label: "Japanese" },
       { id: "neo_traditional", label: "Neo-Traditional" },
       { id: "tribal", label: "Tribal" },
@@ -256,24 +247,24 @@ describe("custom ink color composition", () => {
     const service: ColorVersionImageService = { generateImage };
 
     const result = await createColorVersion(source, "custom", service, {
-      inkColors: ["cool_purple"],
+      inkColors: ["purple"],
     });
     const output = await rawRgb(result.png);
 
     expect(source.equals(immutableSource)).toBe(true);
     expect(result).toMatchObject({ width, height, treatment: "filled" });
     expect(output).toMatchObject({ width, height });
-    expect(pixelAt(output.pixels, width, 5, 5)).toEqual([138, 79, 255]);
-    expect(pixelAt(output.pixels, width, 3, 5)).toEqual([138, 79, 255]);
+    expect(pixelAt(output.pixels, width, 5, 5)).toEqual([160, 32, 240]);
+    expect(pixelAt(output.pixels, width, 3, 5)).toEqual([160, 32, 240]);
     expect(pixelAt(output.pixels, width, 0, 0)).toEqual([255, 255, 255]);
     expect(generateImage).not.toHaveBeenCalled();
     const prompt = colorVersionEditPrompt("custom", {
-      inkColors: ["cool_purple"],
+      inkColors: ["purple"],
     });
     expect(prompt).toContain("only these exact approximate custom inks");
-    expect(prompt).toContain("Cool Purple (#483468)");
+    expect(prompt).toContain("Purple (#512E5F)");
     expect(
-      colorVersionEditPrompt("custom", { inkColors: ["cool_purple"] }),
+      colorVersionEditPrompt("custom", { inkColors: ["purple"] }),
     ).toContain("pure white exterior background");
   });
 

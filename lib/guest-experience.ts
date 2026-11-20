@@ -102,3 +102,19 @@ export function guestArtworkFileName(
 export function shouldResetGuestJourney(tab: string, screen: string): boolean {
   return tab !== "create" && screen === "experience";
 }
+
+/** "Nov 19, 2026 · 3:12 PM" for the history page; the raw value if it is not a valid date. */
+export function formatHistoryDate(iso: string, locale?: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const day = date.toLocaleDateString(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  const time = date.toLocaleTimeString(locale, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${day} · ${time}`;
+}

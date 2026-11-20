@@ -18,6 +18,7 @@ const STYLED = [
   "traditional",
   "neo_traditional",
   "blackwork",
+  "engraving",
   "tribal",
   "watercolor",
   "japanese",
@@ -52,6 +53,7 @@ describe("tattoo style directions", () => {
       { id: "traditional", label: "Traditional" },
       { id: "watercolor", label: "Watercolor" },
       { id: "blackwork", label: "Blackwork" },
+      { id: "engraving", label: "Engraving" },
       { id: "japanese", label: "Japanese" },
       { id: "neo_traditional", label: "Neo-Traditional" },
       { id: "tribal", label: "Tribal" },
@@ -63,13 +65,7 @@ describe("tattoo style directions", () => {
       catalogFilterSummary(parseCatalogFilters({ artStyle: "illustrated" })),
     ).toContain("Playful line art");
     // Removed styles are gone completely and no longer parse.
-    for (const removed of [
-      "new-school",
-      "cartoon",
-      "minimalism",
-      "dotwork",
-      "engraving",
-    ]) {
+    for (const removed of ["new-school", "cartoon", "minimalism", "dotwork"]) {
       expect(() => parseCatalogFilters({ artStyle: removed })).toThrow(
         "invalid_catalog_filters",
       );
@@ -81,7 +77,20 @@ describe("tattoo style directions", () => {
     expect(base).toContain(
       "Create 4 distinct tattoo design variations of a skull with roses.",
     );
-    expect(base).toContain("elegant continuous-line fine-line tattoo");
+    expect(base).toContain("extremely fine hairline tattoo");
+    expect(base).toContain("about 0.05 mm wide");
+    expect(base).toContain("perfectly uniform in thickness");
+    expect(base).toContain("never swelling, tapering");
+    expect(base).toContain("thinnest line possible");
+    // The thin, even line is also forbidden from being any other weight.
+    expect(base).toContain("--no thick, bold or medium lines");
+    expect(base).toContain("--no varying line weight");
+    expect(base).toContain("--no sexual or explicit content");
+    // Other styles must not inherit the fine-line restrictions.
+    expect(styled("traditional")).not.toContain(
+      "--no thick, bold or medium lines",
+    );
+    expect(styled("blackwork")).not.toContain("--no varying line weight");
     expect(base).toContain("gallery-quality line art");
     expect(base).toContain(
       "premium tattoo flash design by a master tattoo artist",
@@ -95,6 +104,7 @@ describe("tattoo style directions", () => {
       traditional: "classic American traditional tattoo flash at master level",
       neo_traditional: "ornate neo-traditional tattoo",
       blackwork: "blackwork tattoo rendered entirely in 100% black ink",
+      engraving: "classic engraving and etching tattoo",
       tribal: "bold tribal tattoo",
       watercolor: "artistic watercolor tattoo",
       japanese: "traditional Japanese irezumi tattoo",
@@ -114,6 +124,11 @@ describe("tattoo style directions", () => {
       "from fine, precise linework to bold strokes",
     );
     expect(blackStyleText).not.toMatch(/spiral|interlocking|tapered/i);
+    // Engraving is built from short, thin strokes and uses black ink only.
+    const engraving = styled("engraving");
+    expect(engraving).toContain("short, thin, finely cut strokes");
+    expect(engraving).toContain("100% black ink only");
+    expect(engraving).toContain("--no solid black fills");
     expect(styled("tribal")).toContain(
       "sweeping, interlocking solid black forms",
     );
@@ -138,7 +153,7 @@ describe("tattoo style directions", () => {
   });
 
   it("lets an ink palette replace the default colors, except for black-only Blackwork", () => {
-    const inks = ["lake_blue", "rose_pink"] as const;
+    const inks = ["sky_blue", "orange"] as const;
     for (const artStyle of [...STYLED, "fine_line"] as const) {
       const withInks = promptFor({
         category: "all",
@@ -146,9 +161,9 @@ describe("tattoo style directions", () => {
         colorMix: "custom",
         inkColors: [...inks],
       });
-      if (artStyle === "blackwork") {
-        expect(withInks).toBe(styled("blackwork"));
-        expect(withInks).toContain("solid black ink only");
+      if (artStyle === "blackwork" || artStyle === "engraving") {
+        expect(withInks).toBe(styled(artStyle));
+        expect(withInks).toContain("black ink only");
         continue;
       }
       for (const ink of tattooInkScreenPalette([...inks])) {
@@ -166,6 +181,7 @@ describe("tattoo style directions", () => {
       "traditional",
       "watercolor",
       "blackwork",
+      "engraving",
       "japanese",
       "neo_traditional",
       "tribal",

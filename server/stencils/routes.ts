@@ -137,7 +137,11 @@ async function publicJobPayload(job: StencilJobRow, token: string) {
           : undefined;
       const hasColorAsset = hasReadyColorVersion && !colorUnavailable;
       const title = aiPrompt
-        ? aiFallbackOptionTitle(aiPrompt.concept, option.optionIndex)
+        ? aiFallbackOptionTitle(
+            aiPrompt.concept,
+            option.optionIndex,
+            options.length,
+          )
         : undefined;
       return {
         id: option.id,
@@ -284,6 +288,13 @@ export function registerStencilRoutes(app: Express): void {
                 type: "enum",
                 values: CATALOG_COLOR_OPTIONS.map((option) => option.id),
                 default: "any",
+                optional: true,
+              },
+              variations: {
+                type: "integer",
+                minimum: 1,
+                maximum: 4,
+                default: 4,
                 optional: true,
               },
               inkColors: {

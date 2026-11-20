@@ -10,30 +10,20 @@ import {
 } from "../shared/tattoo-inks";
 
 const expectedScreenHex: Record<TattooInkId, string> = {
-  cool_purple: "#8A4FFF",
-  purple: "#A020F0",
-  warm_purple: "#D04DBA",
-  rose_pink: "#F55AA5",
   red: "#F44345",
-  cherry_red: "#EC3063",
-  deep_red: "#BD2542",
-  rust_red: "#CC5B35",
-  brown: "#A76D42",
-  black: "#202327",
-  lemon_yellow: "#FFE44D",
-  apricot_yellow: "#FFC85C",
   orange: "#FF8A2B",
-  light_green: "#A3DA54",
+  gold: "#E0A82E",
   green: "#37B56E",
-  dark_green: "#25845D",
-  lake_blue: "#28BFE1",
-  sky_blue: "#56A8F7",
-  navy_blue: "#3E62C9",
-  tattoo_blue: "#3657A4",
+  mint_green: "#3FD0AE",
+  sky_blue: "#3FB4EA",
+  purple: "#A020F0",
+  white: "#F7F7F7",
+  silver: "#BCC0C8",
+  black: "#202327",
 };
 
 describe("tattoo ink screen palette", () => {
-  it("defines a bright screen color for all 20 catalog IDs in catalog order", () => {
+  it("defines a bright screen color for all 10 marker colors in catalog order", () => {
     expect(Object.keys(TATTOO_INK_SCREEN_HEX)).toEqual(
       TATTOO_INKS.map(({ id }) => id),
     );
@@ -44,17 +34,13 @@ describe("tattoo ink screen palette", () => {
   });
 
   it("keeps named hues distinct and exposes the requested display hex", () => {
-    const palette = tattooInkScreenPalette([
-      "purple",
-      "warm_purple",
-      "red",
-    ]);
+    const palette = tattooInkScreenPalette(["purple", "orange", "red"]);
     expect(palette.map(({ hex }) => hex)).toEqual([
       "#A020F0",
-      "#D04DBA",
+      "#FF8A2B",
       "#F44345",
     ]);
-    expect(tattooInkDisplayHex("cool_purple")).toBe("#8A4FFF");
+    expect(tattooInkDisplayHex("gold")).toBe("#E0A82E");
     expect(new Set(palette.map(({ hex }) => hex)).size).toBe(palette.length);
   });
 
@@ -79,11 +65,11 @@ describe("tattoo ink screen palette", () => {
       }),
     );
     const genericColors: GenericPaletteColor[] = palette;
-    expect(genericColors).toHaveLength(20);
+    expect(genericColors).toHaveLength(10);
   });
 
   it("validates one-to-three unique IDs and preserves caller order", () => {
-    const ids = ["tattoo_blue", "black", "lemon_yellow"] as const;
+    const ids = ["sky_blue", "black", "gold"] as const;
     expect(validateTattooInkIds(ids)).toEqual([...ids]);
     expect(tattooInkScreenPalette(ids).map(({ id }) => id)).toEqual([...ids]);
     expect(() => validateTattooInkIds([])).toThrow(
@@ -92,8 +78,8 @@ describe("tattoo ink screen palette", () => {
     expect(() => validateTattooInkIds(["red", "red"])).toThrow(
       "invalid_tattoo_ink_selection",
     );
-    expect(() => validateTattooInkIds(["red", "green", "black", "purple"])).toThrow(
-      "invalid_tattoo_ink_selection",
-    );
+    expect(() =>
+      validateTattooInkIds(["red", "green", "black", "purple"]),
+    ).toThrow("invalid_tattoo_ink_selection");
   });
 });

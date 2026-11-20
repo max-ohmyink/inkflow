@@ -36,7 +36,7 @@ export async function printStencil(
   const mm = Math.min(160, Math.max(20, sizeMm));
   doc.open();
   doc.write(
-    `<!doctype html><html><head><title>AI Tattoo — Mirrored Stencil</title><style>@page{size:A4;margin:12mm}html,body{margin:0;padding:0;background:#fff}img{display:block;width:${mm}mm;height:auto;max-width:100%;image-rendering:high-quality}</style></head><body><img src="${dataUrl}" alt="" /></body></html>`,
+    `<!doctype html><html><head><title>AI Tattoo - Mirrored Stencil</title><style>@page{size:A4;margin:12mm}html,body{margin:0;padding:0;background:#fff}img{display:block;width:${mm}mm;height:auto;max-width:100%;image-rendering:high-quality}</style></head><body><img src="${dataUrl}" alt="" /></body></html>`,
   );
   doc.close();
   const image = doc.querySelector("img")!;

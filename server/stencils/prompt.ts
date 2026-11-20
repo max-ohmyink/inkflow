@@ -183,6 +183,13 @@ export function compileStencilPrompt(
 export const CONTACT_SHEET_LAYOUT_INSTRUCTIONS =
   "Exactly 4 separate artworks in equal 2x2 pure-white quadrants, no text, frames, overlap, or central artwork; maintain white gutters; do not mirror artwork before postprocessing.";
 
+/** Layout text for one image: a single artwork, or the 2x2 sheet that holds several designs. */
+export function layoutInstructionsFor(artworks: 1 | 4): string {
+  return artworks === 1
+    ? "Exactly 1 artwork, centered on a pure-white canvas, no text, frames, grid or extra artwork; do not mirror artwork before postprocessing."
+    : CONTACT_SHEET_LAYOUT_INSTRUCTIONS;
+}
+
 export function compileGenerationPrompt(
   input: Pick<StencilInput, "concept" | "style" | "medium">,
 ): string {

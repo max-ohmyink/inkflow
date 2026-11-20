@@ -1,4 +1,4 @@
-# Oh My Ink - Live AI Tattoo Experience — iPad Event Setup
+# Oh My Ink - Live AI Tattoo Experience - iPad Event Setup
 
 Use a published HTTPS web app on the iPad; do not copy the source ZIP onto it. The app runs in Safari and can be added to the Home Screen. Native Expo Go, TestFlight and App Store installation are not required for this web version.
 
@@ -33,5 +33,5 @@ Freeze the tested published version during the event. The managed database is sh
 
 ## References
 
-[1]: https://support.apple.com/zh-hk/guide/ipad/ipadc602b75b/ipados "Apple — Add a website icon to the iPad Home Screen"
-[2]: https://support.apple.com/en-us/111795 "Apple — Use Guided Access on iPhone or iPad"
+[1]: https://support.apple.com/zh-hk/guide/ipad/ipadc602b75b/ipados "Apple - Add a website icon to the iPad Home Screen"
+[2]: https://support.apple.com/en-us/111795 "Apple - Use Guided Access on iPhone or iPad"

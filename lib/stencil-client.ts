@@ -91,8 +91,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }));
   if (!response.ok) {
     const messages: Record<string, string> = {
-      invalid_request:
-        "Please enter a valid tattoo idea and try again.",
+      invalid_request: "Please enter a valid tattoo idea and try again.",
       instant_draw_only: INSTANT_DRAW_MESSAGE,
       generation_limit_reached:
         "Two designs are already in progress on this device. Open My designs and wait for them to finish.",
@@ -212,6 +211,23 @@ export async function loadLibrary(): Promise<SavedJob[]> {
   } catch {
     return [];
   }
+}
+/** Removes one design from this device's history and returns what is left (order preserved). */
+export async function removeSavedJob(id: string): Promise<SavedJob[]> {
+  const remaining = (await loadLibrary()).filter((record) => record.id !== id);
+  await AsyncStorage.setItem(LIBRARY_KEY, JSON.stringify(remaining));
+  return remaining;
+}
+/** Removes several designs from this device's history at once and returns what is left. */
+export async function removeSavedJobs(
+  ids: readonly string[],
+): Promise<SavedJob[]> {
+  const drop = new Set(ids);
+  const remaining = (await loadLibrary()).filter(
+    (record) => !drop.has(record.id),
+  );
+  await AsyncStorage.setItem(LIBRARY_KEY, JSON.stringify(remaining));
+  return remaining;
 }
 export async function checkStudio(): Promise<boolean> {
   try {

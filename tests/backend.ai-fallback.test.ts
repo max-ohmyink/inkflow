@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   generate: vi.fn(),
   getUrl: vi.fn(),
   split: vi.fn(),
+  unique: vi.fn(),
+  single: vi.fn(),
 }));
 
 vi.mock("../server/stencils/repository", () => ({
@@ -46,6 +48,8 @@ vi.mock("../server/stencils/imageProcessor", () => ({
     height: 64,
   }),
   splitContactSheet: mocks.split,
+  uniqueQuadrants: mocks.unique,
+  singleDesign: mocks.single,
   potraceIsAvailable: vi.fn().mockResolvedValue(false),
   stencilProcessingConfig: vi.fn(() => ({
     threshold: 180,
@@ -58,6 +62,7 @@ import {
   createAiJobPrompt,
   parseAiJobPrompt,
 } from "../server/stencils/jobMetadata";
+import { aiFallbackOptionTitle } from "../server/stencils/aiFallback";
 import { persistActualColorTreatments } from "../server/stencils/colorOutcomes";
 import { parseStencilInput } from "../server/stencils/prompt";
 import { registerStencilRoutes } from "../server/stencils/routes";
@@ -79,6 +84,7 @@ const baseInput = {
 
 function aiPrompt(
   colorMode: "any" | "monochrome" | "red_accent" = "any",
+  variations?: number,
 ): string {
   return createAiJobPrompt({
     version: 1,
@@ -90,6 +96,7 @@ function aiPrompt(
       category: "all",
       artStyle: "fine_line",
       colorMix: colorMode,
+      ...(variations === undefined ? {} : { variations }),
     },
     colorMode,
     fillEnclosedRegions: true,
@@ -173,6 +180,10 @@ beforeEach(() => {
     bytes: Buffer.from("contact-sheet"),
     mimeType: "image/png",
   });
+  mocks.unique.mockImplementation(async (quadrants) => quadrants);
+  mocks.single.mockResolvedValue([
+    { index: 0, bytes: Buffer.from("single-design"), width: 32, height: 32 },
+  ]);
   mocks.split.mockResolvedValue(
     [0, 1, 2, 3].map((index) => ({
       index,
@@ -216,6 +227,18 @@ describe("AI-only source decisions", () => {
     expect(JSON.parse(mocks.insert.mock.calls[0][0].prompt)).toMatchObject({
       mode: "ai",
     });
+  });
+
+  it("leaves the variation number out of the title when only one design remains", () => {
+    expect(aiFallbackOptionTitle("happy cat", 0, 1)).toBe(
+      "AI-created happy cat",
+    );
+    expect(aiFallbackOptionTitle("happy cat", 1, 4)).toBe(
+      "AI-created happy cat - variation 2",
+    );
+    expect(aiFallbackOptionTitle("happy cat", 0)).toBe(
+      "AI-created happy cat - variation 1",
+    );
   });
 
   it("keeps Surprise me and mandalas allowed and blocks blank/explicit input before provider work", async () => {
@@ -267,6 +290,87 @@ describe("persisted AI fallback", () => {
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 
+  const savedIndexes = () =>
+    (mocks.save.mock.calls[0][1] as { optionIndex: number }[]).map(
+      (option) => option.optionIndex,
+    );
+  const originalUploads = () =>
+    mocks.put.mock.calls.filter(([key]) =>
+      String(key).endsWith("-original.png"),
+    ).length;
+
+  it("asks again for the missing designs when duplicates are dropped, then renumbers", async () => {
+    // First sheet: only 2 distinct designs. The top-up sheet brings the other 2.
+    mocks.unique
+      .mockImplementationOnce(async (quadrants) => quadrants.slice(0, 2))
+      .mockImplementationOnce(async (quadrants) => quadrants.slice(0, 4));
+    mocks.findJob.mockResolvedValue(job(aiPrompt()));
+
+    await runStencilJob(id);
+
+    expect(mocks.failed).not.toHaveBeenCalled();
+    expect(mocks.generate).toHaveBeenCalledTimes(2);
+    expect(originalUploads()).toBe(4);
+    expect(savedIndexes()).toEqual([0, 1, 2, 3]);
+  });
+
+  it("stops after the extra rounds and keeps what it has when duplicates never go away", async () => {
+    mocks.unique.mockImplementation(async (quadrants) => quadrants.slice(0, 2));
+    mocks.findJob.mockResolvedValue(job(aiPrompt()));
+
+    await runStencilJob(id);
+
+    // One call plus two top-ups, never more.
+    expect(mocks.generate).toHaveBeenCalledTimes(3);
+    expect(mocks.failed).not.toHaveBeenCalled();
+    expect(savedIndexes()).toEqual([0, 1]);
+    expect(originalUploads()).toBe(2);
+  });
+
+  it("keeps the designs it already has when a top-up call fails", async () => {
+    mocks.unique.mockImplementation(async (quadrants) => quadrants.slice(0, 2));
+    mocks.generate
+      .mockResolvedValueOnce({
+        bytes: Buffer.from("sheet"),
+        mimeType: "image/png",
+      })
+      .mockRejectedValueOnce(new Error("provider down"));
+    mocks.findJob.mockResolvedValue(job(aiPrompt()));
+
+    await runStencilJob(id);
+
+    expect(mocks.failed).not.toHaveBeenCalled();
+    expect(savedIndexes()).toEqual([0, 1]);
+  });
+
+  it("makes exactly the requested number of designs from one sheet", async () => {
+    mocks.findJob.mockResolvedValue(job(aiPrompt("any", 2)));
+
+    await runStencilJob(id);
+
+    expect(mocks.generate).toHaveBeenCalledOnce();
+    expect(mocks.generate.mock.calls[0][0]).toContain(
+      "Create 4 distinct tattoo design variations",
+    );
+    expect(savedIndexes()).toEqual([0, 1]);
+    expect(originalUploads()).toBe(2);
+  });
+
+  it("makes one design from one full-frame image, with no sheet to split", async () => {
+    mocks.findJob.mockResolvedValue(job(aiPrompt("any", 1)));
+
+    await runStencilJob(id);
+
+    expect(mocks.generate).toHaveBeenCalledOnce();
+    const prompt = mocks.generate.mock.calls[0][0] as string;
+    expect(prompt).toContain("Create 1 tattoo design of nebula.");
+    expect(prompt).toContain("Exactly 1 artwork");
+    expect(prompt).not.toContain("2x2");
+    expect(mocks.split).not.toHaveBeenCalled();
+    expect(mocks.single).toHaveBeenCalledOnce();
+    expect(savedIndexes()).toEqual([0]);
+  });
+
   it("generates one 2x2 contact sheet, stores four separate originals, and prepares four AI options", async () => {
     mocks.findJob.mockResolvedValue(job(aiPrompt()));
 
@@ -277,7 +381,7 @@ describe("persisted AI fallback", () => {
       "Create 4 distinct tattoo design variations of nebula.",
     );
     expect(mocks.generate.mock.calls[0][0]).toContain(
-      "continuous-line fine-line tattoo",
+      "extremely fine hairline tattoo",
     );
     expect(mocks.generate.mock.calls[0][0]).toContain(
       "--no sexual or explicit content",
@@ -375,7 +479,7 @@ describe("public source and color compatibility", () => {
       expect(payload).toMatchObject({ source: "ai" });
       expect(payload.options[0]).toMatchObject({
         source: "ai",
-        title: "AI-created nebula — variation 1",
+        title: "AI-created nebula",
         colorMode: "red_accent",
         colorTreatment: "filled",
       });

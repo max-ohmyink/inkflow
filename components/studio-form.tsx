@@ -11,6 +11,8 @@ import {
   CATALOG_COLOR_OPTIONS,
   CATALOG_STYLE_OPTIONS,
   DEFAULT_CATALOG_FILTERS,
+  MAX_VARIATIONS,
+  MIN_VARIATIONS,
   catalogFinderFilters,
   type CatalogFilters,
 } from "@/shared/catalog-filters";
@@ -21,6 +23,7 @@ const PICKABLE_STYLE_IDS = [
   "traditional",
   "neo_traditional",
   "blackwork",
+  "engraving",
   "tribal",
   "watercolor",
   "japanese",
@@ -30,6 +33,11 @@ const STYLE_CHOICES = PICKABLE_STYLE_IDS.map((id) =>
 );
 const isPickableStyle = (style: string) =>
   (PICKABLE_STYLE_IDS as readonly string[]).includes(style);
+
+/** The form starts at one design; the server's own default (4) only applies to old clients. */
+const FORM_DEFAULT_VARIATIONS = 1;
+const chosenVariations = (filters: CatalogFilters) =>
+  filters.variations ?? FORM_DEFAULT_VARIATIONS;
 
 /** Blackwork is black ink only, so any previously chosen ink colors are dropped. */
 function withoutInkColors(filters: CatalogFilters): CatalogFilters {
@@ -67,10 +75,12 @@ export function StudioForm({
   const [focused, setFocused] = useState(false);
   const input = useRef<TextInput>(null);
   const disallowed = isDisallowedInstantDrawConcept(concept);
-  const blackOnly = filters.artStyle === "blackwork";
-  const finderFilters = catalogFinderFilters(
-    blackOnly ? withoutInkColors(filters) : filters,
-  );
+  const blackOnly =
+    filters.artStyle === "blackwork" || filters.artStyle === "engraving";
+  const finderFilters = {
+    ...catalogFinderFilters(blackOnly ? withoutInkColors(filters) : filters),
+    variations: chosenVariations(filters),
+  };
   const submit = () => {
     setTouched(true);
     if (disallowed || busy) return;
@@ -155,7 +165,7 @@ export function StudioForm({
               onChange={(artStyle) => {
                 const next = artStyle as CatalogFilters["artStyle"];
                 onFiltersChange({
-                  ...(next === "blackwork"
+                  ...(next === "blackwork" || next === "engraving"
                     ? withoutInkColors(filters)
                     : filters),
                   artStyle: next,
@@ -191,6 +201,39 @@ export function StudioForm({
             </View>
           )}
         </View>
+        <View style={s.tuning}>
+          <View style={s.variations}>
+            <Text style={s.variationsLabel}>Variations</Text>
+            <View style={s.variationButtons}>
+              {Array.from(
+                { length: MAX_VARIATIONS - MIN_VARIATIONS + 1 },
+                (_, i) => MIN_VARIATIONS + i,
+              ).map((count) => {
+                const active = count === chosenVariations(filters);
+                return (
+                  <Pressable
+                    key={count}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: active, selected: active }}
+                    accessibilityLabel={`${count} ${count === 1 ? "variation" : "different variations"}`}
+                    onPress={() => {
+                      const { variations: _previous, ...rest } = filters;
+                      onFiltersChange({ ...rest, variations: count });
+                    }}
+                    style={[s.variationButton, active && s.variationButtonOn]}
+                  >
+                    <Text style={s.variationText}>{count}</Text>
+                  </Pressable>
+                );
+              })}
+              <Text style={s.variationHint}>
+                {chosenVariations(filters) === 1
+                  ? "1 design"
+                  : `${chosenVariations(filters)} different designs`}
+              </Text>
+            </View>
+          </View>
+        </View>
       </View>
       {/* 4. The one primary action, last in the card. */}
       <PrimaryButton
@@ -219,7 +262,7 @@ const s = StyleSheet.create({
   },
   optionsTitle: {
     fontFamily: F.bold,
-    color: C.muted,
+    color: C.dark,
     fontSize: 12,
     letterSpacing: 1.2,
     textTransform: "uppercase",
@@ -249,6 +292,35 @@ const s = StyleSheet.create({
   error: { color: C.red, fontFamily: F.bold, fontSize: 14, lineHeight: 20 },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 13 },
   choiceColumn: { flex: 1, minWidth: 150 },
+  tuning: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: 28,
+    rowGap: 14,
+    marginTop: 4,
+  },
+  variations: { gap: 8 },
+  variationsLabel: { fontFamily: F.bold, color: C.text, fontSize: 12 },
+  variationButtons: { flexDirection: "row", alignItems: "center", gap: 8 },
+  variationButton: {
+    width: 48,
+    height: 48,
+    borderRadius: R.pill,
+    borderWidth: 2,
+    borderColor: C.dark,
+    backgroundColor: C.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  variationButtonOn: { backgroundColor: C.yellow },
+  variationText: { fontFamily: F.heading, color: C.dark, fontSize: 18 },
+  variationHint: {
+    fontFamily: F.body,
+    color: C.dark,
+    fontSize: 13,
+    marginLeft: 6,
+    flexShrink: 1,
+  },
   reset: {
     color: C.accentInk,
     fontFamily: F.bold,

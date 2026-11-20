@@ -270,7 +270,12 @@ export function StencilResults({
           />
         </View>
       </View>
-      <View style={s.resultCards}>
+      <View
+        style={[
+          s.resultCards,
+          job.options.length === 1 && { justifyContent: "center" },
+        ]}
+      >
         {job.options.map((option, i) => (
           <View
             key={option.id}
@@ -289,11 +294,17 @@ export function StencilResults({
                 accessibilityLabel={`${artistTools && !showOriginal ? "Mirrored artist preparation" : artworkVersionLabel(option, showOriginalArtwork)} option ${i + 1}`}
                 style={s.resultImage}
               />
-              <Text style={s.optionNumber}>0{i + 1}</Text>
+              {/* A lone design has nothing to be numbered against. */}
+              {job.options.length > 1 && (
+                <Text style={s.optionNumber}>0{i + 1}</Text>
+              )}
             </View>
             <View style={s.resultMeta}>
               <Text style={s.variation}>
-                {option.title ?? `AI DESIGN 0${i + 1}`}
+                {option.title ??
+                  (job.options.length > 1
+                    ? `AI DESIGN 0${i + 1}`
+                    : "AI DESIGN")}
               </Text>
               {artistTools && (
                 <Text style={s.resolution}>

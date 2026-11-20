@@ -41,13 +41,7 @@ describe("client pending credential protection", () => {
   it("keeps an uncertain request intact instead of overwriting it with a new search", async () => {
     mocks.fetch.mockRejectedValueOnce(new Error("lost response"));
     await expect(
-      createStencil(
-        "flower",
-        "fine_line",
-        "blackwork",
-        "first",
-        filters,
-      ),
+      createStencil("flower", "fine_line", "blackwork", "first", filters),
     ).rejects.toThrow("lost response");
     const pending = mocks.store.get(key);
     await expect(
@@ -63,13 +57,7 @@ describe("client pending credential protection", () => {
   it("reconnects with the same token, prompt and choices even if the new call arguments differ", async () => {
     mocks.fetch.mockRejectedValueOnce(new Error("lost response"));
     await expect(
-      createStencil(
-        "flower",
-        "fine_line",
-        "blackwork",
-        "first",
-        filters,
-      ),
+      createStencil("flower", "fine_line", "blackwork", "first", filters),
     ).rejects.toThrow();
     const pending = await loadPendingRequest();
     mocks.fetch.mockResolvedValueOnce({
@@ -121,5 +109,53 @@ describe("client pending credential protection", () => {
     );
     expect(saved.id).toBe("next-job");
     expect(mocks.random).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("history removal", () => {
+  const record = (id: string) => ({
+    id,
+    token: `token-${id}`,
+    concept: `design ${id}`,
+    style: "fine_line" as const,
+    medium: "blackwork" as const,
+    createdAt: "2026-11-19T08:00:00.000Z",
+  });
+
+  it("removes only the chosen design, keeps the order of the rest and ignores unknown ids", async () => {
+    const { loadLibrary, removeSavedJob } =
+      await import("../lib/stencil-client");
+    mocks.store.set(
+      "ohmyink:stencil-library:v1",
+      JSON.stringify([record("a"), record("b"), record("c")]),
+    );
+
+    const afterRemoval = await removeSavedJob("b");
+    expect(afterRemoval.map((item) => item.id)).toEqual(["a", "c"]);
+    expect((await loadLibrary()).map((item) => item.id)).toEqual(["a", "c"]);
+
+    expect((await removeSavedJob("missing")).map((item) => item.id)).toEqual([
+      "a",
+      "c",
+    ]);
+    expect(await removeSavedJob("a")).toHaveLength(1);
+    expect(await removeSavedJob("c")).toEqual([]);
+  });
+
+  it("removes many designs at once and leaves the rest in order", async () => {
+    const { loadLibrary, removeSavedJobs } =
+      await import("../lib/stencil-client");
+    mocks.store.set(
+      "ohmyink:stencil-library:v1",
+      JSON.stringify(["a", "b", "c", "d", "e"].map(record)),
+    );
+    const left = await removeSavedJobs(["b", "d", "missing"]);
+    expect(left.map((item) => item.id)).toEqual(["a", "c", "e"]);
+    expect((await loadLibrary()).map((item) => item.id)).toEqual([
+      "a",
+      "c",
+      "e",
+    ]);
+    expect(await removeSavedJobs(["a", "c", "e"])).toEqual([]);
   });
 });

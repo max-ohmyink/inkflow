@@ -16,7 +16,6 @@ export type ImageServiceOriginalImage =
       mimeType: "image/png";
     };
 
-
 export type SafeProviderFailure = {
   httpStatus?: number;
   providerCode?: string;
@@ -76,7 +75,7 @@ export class PlatformServiceError extends Error {
 function hasQwenConfig(): boolean {
   return Boolean(
     (process.env.AI_API_KEY?.trim() || process.env.DASHSCOPE_API_KEY?.trim()) &&
-      (process.env.AI_BASE_URL?.trim() || process.env.AI_IMAGE_MODEL?.trim()),
+    (process.env.AI_BASE_URL?.trim() || process.env.AI_IMAGE_MODEL?.trim()),
   );
 }
 

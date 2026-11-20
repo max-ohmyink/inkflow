@@ -6,9 +6,19 @@ import Head from "expo-router/head";
 export type StudioTab = "create" | "library" | "settings";
 export function StudioHeader({
   status,
+  historyCount,
+  inHistory,
+  onHistory,
+  onNew,
 }: {
   /** Optional live/offline badge shown beside the brand. */
   status?: React.ReactNode;
+  /** Number of designs saved on this device. */
+  historyCount: number;
+  /** True on the History page, where the button becomes "New design". */
+  inHistory: boolean;
+  onHistory: () => void;
+  onNew: () => void;
 }) {
   return (
     <View style={s.header}>
@@ -19,6 +29,26 @@ export function StudioHeader({
         <Text style={s.brandLabel}>Bloomberg Day 2026</Text>
         {status}
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          inHistory
+            ? "New design"
+            : `History, ${historyCount} saved design${historyCount === 1 ? "" : "s"}`
+        }
+        onPress={inHistory ? onNew : onHistory}
+        style={({ pressed }) => [s.headerButton, pressed && { opacity: 0.8 }]}
+      >
+        <Feather name={inHistory ? "plus" : "clock"} size={16} color={C.dark} />
+        <Text style={s.headerButtonText}>
+          {inHistory ? "New design" : "History"}
+        </Text>
+        {!inHistory && historyCount > 0 && (
+          <View style={s.headerBadge}>
+            <Text style={s.headerBadgeText}>{historyCount}</Text>
+          </View>
+        )}
+      </Pressable>
     </View>
   );
 }
@@ -92,14 +122,6 @@ export function SmallButton({
     </Pressable>
   );
 }
-export function StudioFooter() {
-  return (
-    <View style={s.footer}>
-      <Text style={s.footerText}>TOGETHER, MAKE YOUR MARK.</Text>
-      <Text style={s.footerRight}>AI Tattoo</Text>
-    </View>
-  );
-}
 const s = StyleSheet.create({
   header: {
     paddingVertical: 16,
@@ -126,6 +148,30 @@ const s = StyleSheet.create({
     paddingVertical: 9,
   },
   brandDivider: { width: 1, height: 40, backgroundColor: C.dark },
+  headerButton: {
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    backgroundColor: C.white,
+    borderColor: C.dark,
+    borderWidth: 2,
+    borderRadius: R.pill,
+  },
+  headerButtonText: { fontFamily: F.bold, color: C.dark, fontSize: 14 },
+  headerBadge: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: R.pill,
+    backgroundColor: C.yellow,
+    borderColor: C.dark,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerBadgeText: { fontFamily: F.bold, color: C.dark, fontSize: 11 },
   brandLabel: {
     fontFamily: F.heading,
     color: C.text,
@@ -198,21 +244,4 @@ const s = StyleSheet.create({
     backgroundColor: C.white,
   },
   smallText: { color: C.text, fontFamily: F.bold, fontSize: 12 },
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: C.dark,
-    paddingVertical: 26,
-    marginTop: 28,
-    gap: 12,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  footerText: {
-    color: C.text,
-    fontSize: 10,
-    letterSpacing: 1.75,
-    fontFamily: F.mono,
-  },
-  footerRight: { color: C.muted, fontFamily: F.body, fontSize: 10 },
 });

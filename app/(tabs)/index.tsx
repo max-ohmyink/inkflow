@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -27,6 +26,8 @@ import {
   loadPendingRequest,
   randomId,
   removeLocalHistory,
+  removeSavedJob,
+  removeSavedJobs,
   SavedJob,
   StencilJob,
   StencilOption,
@@ -36,13 +37,12 @@ import { printStencil, PrintResult } from "@/lib/stencil-print";
 import {
   PrimaryButton,
   SmallButton,
-  StudioFooter,
   StudioHeader,
 } from "@/components/studio-ui";
 import { StudioForm } from "@/components/studio-form";
-import { EventPoster } from "@/components/event-poster";
 import { useStudioNavigation } from "@/lib/use-studio-navigation";
-import { WebAppGuide } from "@/components/web-app-guide";
+import { HistoryView } from "@/components/history-view";
+import { CardPattern } from "@/components/studio-backdrop";
 import { GuestTattooMoment } from "@/components/guest-tattoo-moment";
 import { shouldResetGuestJourney } from "@/lib/guest-experience";
 import {
@@ -371,14 +371,19 @@ export default function StudioScreen() {
     setJob(null);
     lastRequest.current = null;
   };
-  const openSaved = (record: SavedJob) => {
+  /**
+   * Opens a saved design. When the history page already has its finished job, the results show at
+   * once instead of passing through the "AI is drawing" step while the job is fetched again.
+   */
+  const openSaved = (record: SavedJob, loaded?: StencilJob) => {
+    const ready = loaded?.status === "ready";
     setCatalogFilters(record.filters || { ...DEFAULT_CATALOG_FILTERS });
     setSaved(record);
-    setJob(null);
+    setJob(ready ? loaded : null);
     setError("");
     setSelectedOption(null);
     setShowOriginal(true);
-    setScreen("progress");
+    setScreen(ready ? "results" : "progress");
     changeTab("create");
     setRetryCounter((v) => v + 1);
   };
@@ -433,6 +438,10 @@ export default function StudioScreen() {
       >
         <View style={s.container}>
           <StudioHeader
+            historyCount={library.length}
+            inHistory={tab === "library"}
+            onHistory={() => changeTab("library")}
+            onNew={newDesign}
             status={
               tab === "create" ? (
                 <View style={s.liveBadge}>
@@ -528,6 +537,8 @@ export default function StudioScreen() {
                       },
                   ]}
                 >
+                  {/* The same yellow, blue and pink shapes as the page, inside the card. */}
+                  {!fullWidthStep && <CardPattern />}
                   <Animated.View
                     key={screen}
                     style={{
@@ -627,84 +638,34 @@ export default function StudioScreen() {
                     )}
                   </Animated.View>
                 </View>
-                {/* Step 3 is full width like before: no poster, ribbon or guide. */}
-                {!fullWidthStep && (
-                  <View style={[s.editorial, !wide && { width: "100%" }]}>
-                    <EventPoster compact={compact} />
-                  </View>
-                )}
               </View>
-              {!fullWidthStep && (
-                <>
-                  <View style={s.eventRibbon}>
-                    <View style={{ flex: 1, minWidth: 160 }}>
-                      <Text style={s.ribbonTitle}>
-                        Little ideas. Big smiles.
-                      </Text>
-                    </View>
-                    <Image
-                      source={require("@/assets/event-brand/waterworks-wide.png")}
-                      resizeMode="cover"
-                      accessible={false}
-                      style={{ width: 220, height: 70, borderRadius: 16 }}
-                    />
-                  </View>
-                  <WebAppGuide />
-                </>
-              )}
             </>
           )}
           {tab === "library" && (
-            <View style={s.secondary}>
-              <Text style={s.sectionTitle}>
-                YOUR <Text style={s.sectionSerif}>designs.</Text>
-              </Text>
-              {library.length === 0 ? (
-                <View style={s.empty}>
-                  <Feather name="layers" size={42} color={C.accentInk} />
-                  <Text style={s.emptyTitle}>
-                    YOUR STORY STARTS WITH AN IDEA.
-                  </Text>
-                  <PrimaryButton
-                    text="Find my first tattoo"
-                    onPress={newDesign}
-                    icon="plus"
-                  />
-                </View>
-              ) : (
-                <View style={{ marginTop: 30, gap: 12 }}>
-                  {library.map((record) => (
-                    <Pressable
-                      key={record.id}
-                      onPress={() => openSaved(record)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Open saved design: ${record.concept}`}
-                      style={s.libraryRow}
-                    >
-                      <View
-                        style={[
-                          s.libraryThumb,
-                          { alignItems: "center", justifyContent: "center" },
-                        ]}
-                      >
-                        <Feather name="bookmark" size={21} color={C.dark} />
-                      </View>
-                      <View style={{ flex: 1, gap: 7 }}>
-                        <Text style={s.libraryConcept}>{record.concept}</Text>
-                        <Text style={s.libraryDate}>
-                          {new Date(record.createdAt).toLocaleDateString()}
-                        </Text>
-                      </View>
-                      <Feather
-                        name="arrow-up-right"
-                        size={22}
-                        color={C.accentInk}
-                      />
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
+            <HistoryView
+              records={library}
+              onOpen={openSaved}
+              onDeleteMany={async (ids) => {
+                setLibrary(await removeSavedJobs(ids));
+                // If the loaded design was deleted, the flow must not keep pointing at it.
+                if (saved && ids.includes(saved.id)) {
+                  setSaved(null);
+                  setJob(null);
+                  setSelectedOption(null);
+                  setScreen("form");
+                }
+              }}
+              onDelete={async (id) => {
+                setLibrary(await removeSavedJob(id));
+                // If the loaded design was deleted, the flow must not keep pointing at it.
+                if (saved?.id === id) {
+                  setSaved(null);
+                  setJob(null);
+                  setSelectedOption(null);
+                  setScreen("form");
+                }
+              }}
+            />
           )}
           {tab === "settings" && (
             <View style={s.secondary}>
@@ -784,7 +745,6 @@ export default function StudioScreen() {
               </View>
             </View>
           )}
-          <StudioFooter />
         </View>
       </ScrollView>
       <Modal
@@ -863,7 +823,6 @@ const s = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 34,
   },
-  editorial: { width: "42%" },
   eyebrow: {
     color: C.accentInk,
     fontFamily: F.bold,
@@ -930,29 +889,6 @@ const s = StyleSheet.create({
   },
   howTitleDone: { color: C.muted },
   howCopy: { color: C.muted, fontFamily: F.body, fontSize: 9, marginTop: 6 },
-  eventRibbon: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 24,
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 24,
-    borderTopColor: C.dark,
-    borderTopWidth: 1,
-  },
-  ribbonTitle: {
-    fontFamily: F.heading,
-    color: C.text,
-    fontSize: 29,
-    lineHeight: 35,
-  },
-  ribbonCopy: {
-    fontFamily: F.body,
-    color: C.muted,
-    fontSize: 12,
-    lineHeight: 20,
-    marginTop: 8,
-  },
   secondary: { paddingVertical: 45, minHeight: 570 },
   sectionTitle: { fontFamily: F.heading, fontSize: 47, color: C.text },
   sectionSerif: { fontFamily: F.serif, fontSize: 56, color: C.accentInk },
@@ -970,25 +906,6 @@ const s = StyleSheet.create({
     color: C.text,
     textAlign: "center",
   },
-  libraryRow: {
-    backgroundColor: C.panel,
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 8,
-    padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 18,
-  },
-  libraryThumb: {
-    width: 75,
-    height: 75,
-    backgroundColor: C.white,
-    borderRadius: 5,
-  },
-  libraryConcept: { color: C.text, fontFamily: F.bold, fontSize: 16 },
-  libraryDetail: { color: C.muted, fontFamily: F.body, fontSize: 10 },
-  libraryDate: { color: "#6F6F67", fontFamily: F.body, fontSize: 9 },
   settingsPanel: {
     backgroundColor: C.panel,
     borderWidth: 1,

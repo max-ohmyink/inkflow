@@ -1,4 +1,4 @@
-# Oh My Ink - Live AI Tattoo Experience — Guest Options
+# Oh My Ink - Live AI Tattoo Experience - Guest Options
 
 ## Your idea, artists’ catalog first
 
@@ -16,7 +16,7 @@ Watercolor is a digital painted-source look. It begins on the untouched original
 
 ## Compare, choose and save
 
-Most guest cards show a ready color version first, with a source-appropriate original comparison. Watercolor starts with the painted original. Saving downloads the explicitly displayed original or alternate. Source title/collection/page are shown only for genuine catalog records. Failed optional colors have no color URL and receive a prominent warning—not a fake successful-color label. The original and working sibling colors remain usable; source-generation/storage failures remain real errors.
+Most guest cards show a ready color version first, with a source-appropriate original comparison. Watercolor starts with the painted original. Saving downloads the explicitly displayed original or alternate. Source title/collection/page are shown only for genuine catalog records. Failed optional colors have no color URL and receive a prominent warning-not a fake successful-color label. The original and working sibling colors remain usable; source-generation/storage failures remain real errors.
 
 Show your choice to our team for the non-permanent, needle-free tattoo moment. The app does not automatically print, notify a staff queue, create a photo, complete a skin try-on or apply a physical tattoo. Artist tools are presentation separation, not authenticated staff access. Printing derives from the source original and mirrors once; test actual equipment and disable additional printer-side mirroring.
 

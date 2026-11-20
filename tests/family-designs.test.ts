@@ -61,6 +61,7 @@ describe("family design policy", () => {
       [
         "any",
         "blackwork",
+        "engraving",
         "tribal",
         "fine_line",
         "illustrated",
@@ -88,7 +89,7 @@ describe("family design policy", () => {
     });
 
     expect(metadata.style).toBe("fine_line");
-    expect(prompt).toContain("elegant continuous-line fine-line tattoo");
+    expect(prompt).toContain("extremely fine hairline tattoo");
     expect(prompt).toContain(
       "premium tattoo flash design by a master tattoo artist",
     );

@@ -47,17 +47,17 @@ export function TattooInkPicker({
         style={s.control}
       >
         <View style={{ flex: 1, gap: 8 }}>
-          <View style={{ flexDirection: "row", gap: 5 }}>
-            {(chosen.length
-              ? chosen
-              : [{ id: "original", name: "Original", hex: C.dark }]
-            ).map((ink) => (
-              <View
-                key={ink.id}
-                style={[s.dot, { backgroundColor: displayInkHex(ink) }]}
-              />
-            ))}
-          </View>
+          {/* Original colors has no dot; dots only show for inks the guest picked. */}
+          {chosen.length > 0 && (
+            <View style={{ flexDirection: "row", gap: 5 }}>
+              {chosen.map((ink) => (
+                <View
+                  key={ink.id}
+                  style={[s.dot, { backgroundColor: displayInkHex(ink) }]}
+                />
+              ))}
+            </View>
+          )}
           <Text numberOfLines={2} style={s.value}>
             {summary}
           </Text>
@@ -87,6 +87,15 @@ export function TattooInkPicker({
               >
                 <Feather name="x" size={22} color={C.text} />
               </Pressable>
+            </View>
+            {/* Pinned above the colors so it is read before choosing, not buried below them. */}
+            <View accessibilityRole="alert" style={s.notice}>
+              <Feather name="info" size={18} color={C.dark} />
+              <Text style={s.noticeText}>
+                Brighter screen colors are used for digital previews. Physical
+                inks may look different; our artist can confirm the real colors.
+                Original photographed reference values are kept separately.
+              </Text>
             </View>
             <ScrollView
               style={{ maxHeight: 430 }}
@@ -154,16 +163,15 @@ export function TattooInkPicker({
                     </Pressable>
                   );
                 })}
+                {/* Invisible fillers keep the last row left-aligned, so Black sits next to Silver. */}
+                {Array.from({ length: (4 - (inks.length % 4)) % 4 }, (_, i) => (
+                  <View key={`filler-${i}`} style={s.swatchFiller} />
+                ))}
               </View>
               <Text accessibilityLiveRegion="polite" style={s.copy}>
                 {selected.length === 3
                   ? "Three inks chosen. Remove one to choose another."
                   : `${selected.length} of 3 inks selected.`}
-              </Text>
-              <Text style={s.note}>
-                Brighter screen colors are used for digital previews. Physical
-                inks may look different; our artist can confirm the real colors.
-                Original photographed reference values are kept separately.
               </Text>
             </ScrollView>
             <PrimaryButton
@@ -201,7 +209,7 @@ export function RequestedInkSummary({
         ))}
       </View>
       <Text style={s.note}>
-        Requested colors—not a confirmation that a color version was generated.
+        Requested colors, not a confirmation that a color version was generated.
       </Text>
     </View>
   );
@@ -277,6 +285,7 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
   },
+  swatchFiller: { width: "23%", height: 0 },
   swatch: {
     width: "23%",
     minHeight: 80,
@@ -318,6 +327,25 @@ const s = StyleSheet.create({
     textAlign: "center",
   },
   note: { color: C.muted, fontFamily: F.body, fontSize: 10, lineHeight: 17 },
+  notice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#FFF3C4",
+    borderColor: C.dark,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 14,
+    marginBottom: 14,
+  },
+  noticeText: {
+    flex: 1,
+    color: C.text,
+    fontFamily: F.medium,
+    fontSize: 13,
+    lineHeight: 20,
+  },
   receipt: {
     width: "100%",
     backgroundColor: C.cream,

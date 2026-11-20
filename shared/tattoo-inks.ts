@@ -1,24 +1,19 @@
+/**
+ * The ten marker colors of the temporary-tattoo pen set (red, orange, gold, green, mint, sky blue,
+ * purple, white, silver, black). Only these can be picked. `hex` is the reference color used by
+ * the color compositor; the bright on-screen color is in TATTOO_INK_SCREEN_HEX below.
+ */
 export const TATTOO_INKS = [
-  { id: "cool_purple", name: "Cool Purple", hex: "#483468" },
-  { id: "purple", name: "Purple", hex: "#512E5F" },
-  { id: "warm_purple", name: "Warm Purple", hex: "#803A5C" },
-  { id: "rose_pink", name: "Rose Pink", hex: "#A94F73" },
   { id: "red", name: "Red", hex: "#B64457" },
-  { id: "cherry_red", name: "Cherry Red", hex: "#A64F61" },
-  { id: "deep_red", name: "Deep Red", hex: "#89444F" },
-  { id: "rust_red", name: "Rust Red", hex: "#604953" },
-  { id: "brown", name: "Brown", hex: "#645352" },
-  { id: "black", name: "Black", hex: "#3E414A" },
-  { id: "lemon_yellow", name: "Lemon Yellow", hex: "#A99740" },
-  { id: "apricot_yellow", name: "Apricot Yellow", hex: "#A9833C" },
   { id: "orange", name: "Orange", hex: "#A65037" },
-  { id: "light_green", name: "Light Green", hex: "#6B8A3E" },
+  { id: "gold", name: "Gold", hex: "#A9833C" },
   { id: "green", name: "Green", hex: "#397867" },
-  { id: "dark_green", name: "Dark Green", hex: "#305449" },
-  { id: "lake_blue", name: "Lake Blue", hex: "#418599" },
+  { id: "mint_green", name: "Mint Green", hex: "#4E9A86" },
   { id: "sky_blue", name: "Sky Blue", hex: "#3D6895" },
-  { id: "navy_blue", name: "Navy Blue", hex: "#2D3485" },
-  { id: "tattoo_blue", name: "Tattoo Blue", hex: "#2D365A" },
+  { id: "purple", name: "Purple", hex: "#512E5F" },
+  { id: "white", name: "White", hex: "#D9D9D9" },
+  { id: "silver", name: "Silver", hex: "#9A9EA5" },
+  { id: "black", name: "Black", hex: "#3E414A" },
 ] as const;
 
 export type TattooInkId = (typeof TATTOO_INKS)[number]["id"];
@@ -47,26 +42,16 @@ const HEX_RGB = /^#([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})$/;
 
 /** Brighter display-only colors; catalog/source hex values remain unchanged. */
 export const TATTOO_INK_SCREEN_HEX: Record<TattooInkId, string> = {
-  cool_purple: "#8A4FFF",
-  purple: "#A020F0",
-  warm_purple: "#D04DBA",
-  rose_pink: "#F55AA5",
   red: "#F44345",
-  cherry_red: "#EC3063",
-  deep_red: "#BD2542",
-  rust_red: "#CC5B35",
-  brown: "#A76D42",
-  black: "#202327",
-  lemon_yellow: "#FFE44D",
-  apricot_yellow: "#FFC85C",
   orange: "#FF8A2B",
-  light_green: "#A3DA54",
+  gold: "#E0A82E",
   green: "#37B56E",
-  dark_green: "#25845D",
-  lake_blue: "#28BFE1",
-  sky_blue: "#56A8F7",
-  navy_blue: "#3E62C9",
-  tattoo_blue: "#3657A4",
+  mint_green: "#3FD0AE",
+  sky_blue: "#3FB4EA",
+  purple: "#A020F0",
+  white: "#F7F7F7",
+  silver: "#BCC0C8",
+  black: "#202327",
 };
 
 function rgbFromHex(hex: string): readonly [number, number, number] {

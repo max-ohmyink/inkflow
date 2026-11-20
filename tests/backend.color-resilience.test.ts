@@ -35,6 +35,8 @@ const mocks = vi.hoisted(() => {
     put: vi.fn(),
     save: vi.fn(),
     split: vi.fn(),
+    unique: vi.fn(),
+    single: vi.fn(),
   };
 });
 
@@ -81,6 +83,8 @@ vi.mock("../server/stencils/imageProcessor", () => ({
   }),
   potraceIsAvailable: vi.fn().mockResolvedValue(false),
   splitContactSheet: mocks.split,
+  uniqueQuadrants: mocks.unique,
+  singleDesign: mocks.single,
   stencilProcessingConfig: vi.fn(() => ({
     threshold: 180,
     minimumComponentPixels: 3,
@@ -177,6 +181,10 @@ beforeEach(() => {
   mocks.options.mockResolvedValue([]);
   mocks.put.mockResolvedValue(undefined);
   mocks.save.mockResolvedValue(undefined);
+  mocks.unique.mockImplementation(async (quadrants) => quadrants);
+  mocks.single.mockResolvedValue([
+    { index: 0, bytes: Buffer.from("single-design"), width: 32, height: 32 },
+  ]);
   mocks.split.mockResolvedValue(
     [0, 1, 2, 3].map((index) => ({
       index,

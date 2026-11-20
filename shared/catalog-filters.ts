@@ -16,6 +16,7 @@ export type CatalogArtStyle =
   | "traditional"
   | "watercolor"
   | "blackwork"
+  | "engraving"
   | "tribal"
   | "japanese"
   | "neo_traditional"
@@ -35,7 +36,23 @@ export type CatalogFilters = {
   colorMix: CatalogColorMix;
   /** Present only when colorMix is custom; values are one to three unique tattoo ink IDs. */
   inkColors?: TattooInkId[];
+  /** How many different designs to create (1–4). Omitted means the default of 4. */
+  variations?: number;
 };
+
+export const MIN_VARIATIONS = 1;
+export const MAX_VARIATIONS = 4;
+export const DEFAULT_VARIATIONS = 4;
+
+/** The number of designs a request asks for, defaulting to 4. */
+export function variationCount(filters: CatalogFilters | undefined): number {
+  const value = filters?.variations;
+  return Number.isInteger(value) &&
+    (value as number) >= MIN_VARIATIONS &&
+    (value as number) <= MAX_VARIATIONS
+    ? (value as number)
+    : DEFAULT_VARIATIONS;
+}
 
 export const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
   category: "all",
@@ -50,6 +67,7 @@ const VALID_CATALOG_ART_STYLES = new Set<CatalogArtStyle>([
   "traditional",
   "watercolor",
   "blackwork",
+  "engraving",
   "tribal",
   "japanese",
   "neo_traditional",
@@ -84,6 +102,7 @@ export const CATALOG_STYLE_OPTIONS: readonly {
   { id: "traditional", label: "Traditional" },
   { id: "watercolor", label: "Watercolor" },
   { id: "blackwork", label: "Blackwork" },
+  { id: "engraving", label: "Engraving" },
   { id: "japanese", label: "Japanese" },
   { id: "neo_traditional", label: "Neo-Traditional" },
   { id: "tribal", label: "Tribal" },
@@ -129,6 +148,21 @@ export function parseCatalogFilters(value: unknown): CatalogFilters {
   const category = "all";
   const artStyle = input.artStyle ?? "any";
   const colorMix = input.colorMix ?? "any";
+  const rawVariations = input.variations;
+  if (
+    rawVariations !== undefined &&
+    (typeof rawVariations !== "number" ||
+      !Number.isInteger(rawVariations) ||
+      rawVariations < MIN_VARIATIONS ||
+      rawVariations > MAX_VARIATIONS)
+  ) {
+    throw new Error("invalid_catalog_filters");
+  }
+  // The default is stored as "not set", so older and default requests look the same.
+  const variations =
+    typeof rawVariations === "number" && rawVariations !== DEFAULT_VARIATIONS
+      ? { variations: rawVariations }
+      : {};
   if (
     typeof artStyle !== "string" ||
     !VALID_CATALOG_ART_STYLES.has(artStyle as CatalogArtStyle) ||
@@ -145,6 +179,7 @@ export function parseCatalogFilters(value: unknown): CatalogFilters {
         artStyle: artStyle as CatalogArtStyle,
         colorMix,
         inkColors: validateTattooInkIds(input.inkColors),
+        ...variations,
       };
     } catch {
       throw new Error("invalid_catalog_filters");
@@ -157,6 +192,7 @@ export function parseCatalogFilters(value: unknown): CatalogFilters {
     category,
     artStyle: artStyle as CatalogArtStyle,
     colorMix: colorMix as Exclude<CatalogColorMix, "custom">,
+    ...variations,
   };
 }
 

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { InsertStencilOption } from "../../drizzle/schema";
 import {
   DEFAULT_CATALOG_FILTERS,
+  variationCount,
   type CatalogColorMix,
   type CatalogFilters,
 } from "../../shared/catalog-filters";
@@ -11,6 +12,7 @@ import {
 } from "../../shared/family-designs";
 import {
   aiFallbackMetadataInput,
+  artworksPerImage,
   compileAiFallbackGenerationPrompt,
 } from "./aiFallback";
 import {
@@ -396,35 +398,77 @@ async function prepareStencilOption(input: {
   };
 }
 
+/** Extra image calls allowed to make up for duplicate designs (so at most 3 calls per job). */
+const MAX_EXTRA_ROUNDS = 2;
+
 async function prepareAiOptions(
   jobId: string,
   metadata: AiJobPromptV1,
   color: ColorIntent,
   outcomes?: ActualColorTreatment[],
 ): Promise<InsertStencilOption[]> {
-  // Exactly one provider generation produces a native 2x2 contact sheet; no model is hardcoded.
-  const generated = await generateImage(
-    compileAiFallbackGenerationPrompt({
-      concept: metadata.concept,
-      style: metadata.style,
-      filters: metadata.filters,
-    }),
-  );
-  const { splitContactSheet } = await import("./imageProcessor");
-  const quadrants = await splitContactSheet(generated.bytes);
-  if (quadrants.length !== 4) throw new Error("contact_sheet_invalid");
+  const wanted = variationCount(metadata.filters);
+  const perImage = artworksPerImage(metadata.filters);
+  const prompt = compileAiFallbackGenerationPrompt({
+    concept: metadata.concept,
+    style: metadata.style,
+    filters: metadata.filters,
+  });
+  const { splitContactSheet, singleDesign, uniqueQuadrants } =
+    await import("./imageProcessor");
 
-  for (const quadrant of quadrants) {
-    if (
-      !Number.isInteger(quadrant.index) ||
-      quadrant.index < 0 ||
-      quadrant.index >= 4
-    )
-      throw new Error("contact_sheet_invalid");
+  // Every design the guest sees must be different (a mirrored copy counts as the same). Duplicates
+  // are dropped, and a further call tops up the missing ones, up to MAX_EXTRA_ROUNDS times.
+  let unique: Awaited<ReturnType<typeof splitContactSheet>> = [];
+  for (let round = 0; round <= MAX_EXTRA_ROUNDS; round += 1) {
+    let fresh: Awaited<ReturnType<typeof splitContactSheet>>;
+    try {
+      // One provider generation per round; no model is hardcoded.
+      const generated = await generateImage(prompt);
+      fresh =
+        perImage === 1
+          ? await singleDesign(generated.bytes)
+          : await splitContactSheet(generated.bytes);
+    } catch (error) {
+      // A failed top-up must not throw away designs we already have.
+      if (round > 0 && unique.length > 0) {
+        console.warn("[variation-top-up-failed]", {
+          jobId,
+          round,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        break;
+      }
+      throw error;
+    }
+    if (fresh.length !== perImage) throw new Error("contact_sheet_invalid");
+    for (const quadrant of fresh) {
+      if (
+        !Number.isInteger(quadrant.index) ||
+        quadrant.index < 0 ||
+        quadrant.index >= perImage
+      )
+        throw new Error("contact_sheet_invalid");
+    }
+    // Earlier designs come first, so a later copy is the one dropped.
+    unique = await uniqueQuadrants([...unique, ...fresh]);
+    if (unique.length >= wanted) break;
+    console.info("[variations-short]", {
+      jobId,
+      round,
+      have: unique.length,
+      wanted,
+    });
   }
+
+  // Kept designs are renumbered 0..n-1 so storage keys and option indexes stay contiguous.
+  const kept = unique.slice(0, wanted).map((quadrant, index) => ({
+    ...quadrant,
+    index,
+  }));
   // Options are independent (each writes its own keys/outcome slot), so run them concurrently.
   const options = await Promise.all(
-    quadrants.map((quadrant) =>
+    kept.map((quadrant) =>
       prepareStencilOption({
         jobId,
         index: quadrant.index,

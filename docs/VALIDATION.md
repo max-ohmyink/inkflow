@@ -62,7 +62,7 @@ No physical iPad/printer or public deployment success is claimed. The checked pl
 
 The narrow read-only guest-choice review identified one interrupted-submit issue: returning to the finder could let a new request overwrite the only saved capability token of an uncertain accepted request. The client now rejects a different request ID while a pending credential exists, the controller restores that pending request/filters after an uncertain failure, and the progress view keeps the guest on the reconnect path. Explicit history clearing remains an intentional access-removal action. Three new client regressions prove token/filter preservation, same-request reconnect and new-search availability after a definite 400 rejection; the affected 21-test subset passed.
 
-The corrected controller and 18-test affected guest/filter/client-recovery subset passed, followed by the final browser export and manifest/route verification. Re-entering the reconnect view also clears any different saved design from the active view so the pending request—not an unrelated history entry—is recovered. No second full acceptance pass or real catalog job was created for these recovery fixes.
+The corrected controller and 18-test affected guest/filter/client-recovery subset passed, followed by the final browser export and manifest/route verification. Re-entering the reconnect view also clears any different saved design from the active view so the pending request-not an unrelated history entry-is recovered. No second full acceptance pass or real catalog job was created for these recovery fixes.
 
 The final affected-view export also passed TypeScript and the browser title/manifest/icons/routes verifier after the reconnect-view adjustment. Both development listeners return HTTP 200. The English guest-options and iPad event guides are complete. These are source/build/Preview checks, not a claim of successful public publication or physical iPad/AirPrint operation.
 
@@ -92,13 +92,13 @@ These source/unit/build/live-image checks do not establish a public deployment, 
 
 ### Narrow review correction: actual treatment, not fill intent
 
-The read-only review confirmed one labeling defect: an entirely open motif correctly retained ink-only accents but its requested V3/AI fill intent was being exposed as an actual filled result. The compositor now returns its actual filled, ink_only or monochrome outcome. New ready-option transactions persist a per-option optionColorTreatments array in the existing versioned job prompt, atomically with readiness—no schema migration or provider repeat. The API joins this actual outcome by index. Older ready V3/AI color assets without recorded outcomes keep neutral color-version labels instead of guessing a fill; V2 line-accent labels remain compatible.
+The read-only review confirmed one labeling defect: an entirely open motif correctly retained ink-only accents but its requested V3/AI fill intent was being exposed as an actual filled result. The compositor now returns its actual filled, ink_only or monochrome outcome. New ready-option transactions persist a per-option optionColorTreatments array in the existing versioned job prompt, atomically with readiness-no schema migration or provider repeat. The API joins this actual outcome by index. Older ready V3/AI color assets without recorded outcomes keep neutral color-version labels instead of guessing a fill; V2 line-accent labels remain compatible.
 
 A targeted mixed-source AI-worker regression prepares open/closed/open/closed originals with mocked proposals, verifies persisted outcomes ink_only/filled/ink_only/filled and reads those same labels through the protected public API. A separate regression ensures unknown historical V3 color treatment is not guessed. Filled and open compositor fixtures now assert their actual treatment beside their pixels. TypeScript and the six affected test files passed 41 tests. No additional real provider request was made for this correction; the previously verified real original/color assets remain unchanged.
 
 The final affected browser/API rebuild after the actual-outcome correction passed, including the browser title, owned standalone manifest, icons and declared-route verifier. No additional live generation or coloring was submitted.
 
-## Color error reliability — 2026-10-26
+## Color error reliability - 2026-10-26
 
 Recent dragon/eagle/dog requests matched real catalog records but failed during Color pop. One bounded raw diagnostic confirmed GenerateImage returned HTTP 400 / failed_precondition before returning an image. No geometry change was made to guess around a provider rejection.
 
@@ -106,13 +106,13 @@ The correction isolates only typed optional color failures for new filled-color 
 
 Passed TypeScript, 39 focused diagnostic/guest/filled/legacy/partial-output tests across six files, complete browser/API build and exported title/manifest/icons/routes verification. A single live exact catalog Dragon v.1 / Color pop request became ready with byte-identical original, usable mirrored preparation, an unavailable-color warning and 409 protected color endpoint while the service continued to reject its optional edit. Source catalog PNGs had no changes. Runtime credentials stay in ignored .cache only. No publication, service-quota repair or physical iPad/printer result is claimed.
 
-## Missing-color cause confirmed — 2026-10-26
+## Missing-color cause confirmed - 2026-10-26
 
 The next bounded diagnostic read the actual rejected ImageService body: HTTP 400 / failed_precondition with message “your account has hit a usage exhausted”. Recent selected red/mixed palettes were persisted correctly, but all their actual outputs were unavailable. Therefore the visible artwork is the preserved original, not a completed colored design. The exact wording now classifies as exhausted usage without guessing a personal balance, charge or reset time.
 
 Guest results now show a prominent REQUESTED COLORS NOT GENERATED notice for original-only output, with distinct partial-success copy. Passed TypeScript, 17 focused provider/guest/resilience tests, combined web/API build and manifest/title/routes verification. No further image attempt, quota reset, alternate-provider substitution, fabricated color or billing action was made after confirmation. AI coloring remains blocked pending resolution of the service restriction.
 
-## 2026-10-27 — Bloomberg Day event theme, family edit and supplied inks
+## 2026-10-27 - Bloomberg Day event theme, family edit and supplied inks
 
 Two source-only Waterworks crops are used as decorative event artwork, never tattoo options. The original Oh My Ink logo and four imported font files were compared byte-for-byte against their supplied/source versions and remain unchanged. Avenir Next P Regular/Medium/Demi and Bloomberg Prop Unicode I are loaded in the live UI. The exact app name and native identifiers remain unchanged. An initial iPad capture revealed the background image using native dimensions; explicit 100% width/height corrected that concrete layout defect. Final iPad-landscape and narrow-phone captures confirm readable logo/font/layout wrapping.
 
@@ -130,7 +130,7 @@ One exact live Fine Line Rose 1 request used Lake Blue, Cherry Red and Lemon Yel
 
 Final affected checks passed: custom ink/guest preview tests (21 cases), family/finder/client recovery tests (15 cases), and a narrow read-only source review. The review found no blockers and reconfirmed source/colored/stencil separation and legacy compatibility. TypeScript and complete browser/API build/export passed; title, owned manifest, icons and declared browser routes were verified. Both current fixed listeners are healthy. The colored rose PNG is an actual live API output, not a mock or a substituted AI illustration.
 
-## Brighter screen palette — in-progress gap update
+## Brighter screen palette - in-progress gap update
 
 The separate 20-ink digital palette and its reference preservation tests pass (4 tests). New local custom-render tests (7) and existing tattoo-ink compatibility tests (6) pass after intentional brighter RGB expectation updates; TypeScript passes. Original photo-derived JSON and catalog/brand assets have not changed. UI swatches use the display helper and disclose physical ink differences. Gap-analysis integration and final Tiger/Butterfly/API output evidence are pending; no image provider has been called.
 

@@ -103,7 +103,7 @@ describe("local selected tattoo ink fills", () => {
     const provider = throwingProvider();
 
     const result = await createColorVersion(source, "custom", provider, {
-      inkColors: ["red", "lake_blue", "lemon_yellow"],
+      inkColors: ["red", "sky_blue", "gold"],
     });
     const output = await rawRgb(result.png);
 
@@ -112,8 +112,8 @@ describe("local selected tattoo ink fills", () => {
     expect(output).toMatchObject({ width, height });
     expect(provider.generateImage).not.toHaveBeenCalled();
     expect(pixelAt(output.pixels, width, 6, 8)).toEqual([244, 67, 69]);
-    expect(pixelAt(output.pixels, width, 18, 8)).toEqual([40, 191, 225]);
-    expect(pixelAt(output.pixels, width, 31, 8)).toEqual([255, 228, 77]);
+    expect(pixelAt(output.pixels, width, 18, 8)).toEqual([63, 180, 234]);
+    expect(pixelAt(output.pixels, width, 31, 8)).toEqual([224, 168, 46]);
     expect(pixelAt(output.pixels, width, 2, 7)).toEqual([244, 67, 69]);
     expect(pixelAt(output.pixels, width, 2, 8)).toEqual([252, 200, 200]);
     expect(pixelAt(output.pixels, width, 0, 0)).toEqual([255, 255, 255]);
@@ -121,8 +121,8 @@ describe("local selected tattoo ink fills", () => {
       [255, 255, 255],
       [252, 200, 200],
       [244, 67, 69],
-      [40, 191, 225],
-      [255, 228, 77],
+      [63, 180, 234],
+      [224, 168, 46],
     ]);
   });
 
@@ -185,7 +185,7 @@ describe("local selected tattoo ink fills", () => {
     [],
     ["red", "red"],
     ["not_an_ink"],
-    ["red", "green", "lake_blue", "black"],
+    ["red", "green", "sky_blue", "black"],
   ])(
     "rejects invalid custom palette selections without calling the provider: %j",
     async (inkColors) => {

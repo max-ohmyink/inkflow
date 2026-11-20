@@ -8,6 +8,7 @@ export const ALLOWED_FAMILY_ART_STYLE_IDS = [
   "traditional",
   "watercolor",
   "blackwork",
+  "engraving",
   "japanese",
   "neo_traditional",
   "tribal",

@@ -1,4 +1,4 @@
-# Oh My Ink - Live AI Tattoo Experience — Web App Guide
+# Oh My Ink - Live AI Tattoo Experience - Web App Guide
 
 ## Current event-facing version
 
@@ -16,7 +16,7 @@ The server checks suitable theme/art-style catalog matches first and returns up 
 
 The 20 English choices follow the uploaded ink reference: Cool Purple, Purple, Warm Purple, Rose Pink, Red, Cherry Red, Deep Red, Rust Red, Brown, Black, Lemon Yellow, Apricot Yellow, Orange, Light Green, Green, Dark Green, Lake Blue, Sky Blue, Navy Blue and Tattoo Blue.
 
-The original photo-derived RGB references remain stored separately from a brighter digital display palette. New custom images and visible swatches use the brighter mapping; neither is physical ink calibration, a manufacturer specification or skin-safety advice. Staff should confirm actual materials, placement and the physical ink choice. Select one to three inks; remove one to choose another once three are selected. **Keep original colors** clears the custom palette. Requested ink IDs are validated and preserved through submission, reconnection and catalog/AI metadata. The selected-design screen displays these as requested inks—not confirmation that a digital color version succeeded.
+The original photo-derived RGB references remain stored separately from a brighter digital display palette. New custom images and visible swatches use the brighter mapping; neither is physical ink calibration, a manufacturer specification or skin-safety advice. Staff should confirm actual materials, placement and the physical ink choice. Select one to three inks; remove one to choose another once three are selected. **Keep original colors** clears the custom palette. Requested ink IDs are validated and preserved through submission, reconnection and catalog/AI metadata. The selected-design screen displays these as requested inks-not confirmation that a digital color version succeeded.
 
 New selected custom inks use direct region-limited fill with the brighter selected palette, without an AI color-service call. Internal analysis may infer bounded small contour gaps, without drawing new black strokes, to recover more enclosed subject areas. Wide ambiguous openings remain a limitation; the analyzer must not paint broad rectangular/hull backgrounds. Contours, lettering, original dimensions and white exterior remain protected. Black-only custom selection uses the local monochrome path. Original/default and archived color modes remain readable without automatically recoloring saved artwork. Start a new request to receive the updated digital version.
 

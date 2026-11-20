@@ -293,7 +293,6 @@ describe("original-constrained color versions", () => {
       ),
     ).rejects.toBeInstanceOf(ColorVersionError);
   });
-
 });
 
 describe("versioned color asset access", () => {
